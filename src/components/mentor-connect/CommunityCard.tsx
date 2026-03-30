@@ -1,21 +1,18 @@
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/language-context";
-import { LocalizedString } from "@/lib/mock-data";
+import { Community } from "@/lib/types";
 
 interface CommunityCardProps {
-  community: {
-    id: string;
-    name: LocalizedString;
-    mentorName: LocalizedString;
-    mentorAvatar: string;
-    members: number;
-    unread: number;
-  };
+  community: Community;
 }
 
 export function CommunityCard({ community }: CommunityCardProps) {
   const navigate = useNavigate();
   const { getLocalized, t } = useLanguage();
+
+  const mName = community.mentorName || { en: "Expert", mr: "तज्ज्ञ" };
+  const mAvatar = community.mentorAvatar || community.image;
+  const unreadCount = community.unread || 0;
 
   return (
     <div
@@ -26,13 +23,13 @@ export function CommunityCard({ community }: CommunityCardProps) {
       
       <div className="relative flex-shrink-0">
         <img 
-          src={community.mentorAvatar} 
-          alt={getLocalized(community.mentorName)} 
+          src={mAvatar} 
+          alt={getLocalized(mName)} 
           className="w-14 h-14 rounded-2xl object-cover border border-border group-hover:border-primary/30 transition-colors" 
         />
-        {community.unread > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-2 -right-2 min-w-[22px] h-[22px] px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold border-2 border-card shadow-lg animate-pulse-subtle">
-            {community.unread}
+            {unreadCount}
           </span>
         )}
       </div>
@@ -42,7 +39,7 @@ export function CommunityCard({ community }: CommunityCardProps) {
           {getLocalized(community.name)}
         </h4>
         <p className="text-caption text-muted-foreground mt-0.5">
-          <span className="font-medium">{t("by") || "by"} {getLocalized(community.mentorName)}</span> 
+          <span className="font-medium">{t("by") || "by"} {getLocalized(mName)}</span> 
           <span className="mx-2 opacity-30">•</span> 
           <span>{community.members} {t("community.members") || "members"}</span>
         </p>

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { communities } from "@/lib/mock-data";
+import { communities } from "@/lib/constants";
 import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Settings, Users, Upload, Plus, ShieldCheck, Award } from "lucide-react";
 import { OpportunityCard } from "@/components/mentor-connect/OpportunityCard";
-import { opportunities } from "@/lib/mock-data";
+import { useOpportunities } from "@/lib/opportunities-context";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +16,7 @@ export default function MentorCommunityManagement() {
   const [showShareForm, setShowShareForm] = useState(false);
   const { t, getLocalized } = useLanguage();
   const navigate = useNavigate();
+  const { opportunities } = useOpportunities();
   
   // Real app would fetch the community owned by the mentor
   const community = communities[0];
@@ -27,7 +28,8 @@ export default function MentorCommunityManagement() {
     { key: "shared resources", label: t("mentor.community.tabResources") || "Shared Resources" },
   ];
 
-  const communityOpps = opportunities.filter((o) => o.mentorId === community.mentorId);
+  // Using a simplified match for MVP: Nashville expert network synchronization
+  const communityOpps = opportunities.slice(0, 5); 
 
   return (
     <ResponsiveLayout>

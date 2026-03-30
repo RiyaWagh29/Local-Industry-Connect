@@ -2,7 +2,7 @@ import { Heart, MessageCircle, Share2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
-import { LocalizedString } from "@/lib/mock-data";
+import { LocalizedString } from "@/lib/types";
 
 interface PostCardProps {
   post: {

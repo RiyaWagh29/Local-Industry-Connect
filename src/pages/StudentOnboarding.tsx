@@ -7,7 +7,7 @@ import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { SkillTag } from "@/components/mentor-connect/SkillTag";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
-import { industries } from "@/lib/mock-data";
+import { industries } from "@/lib/constants";
 import { ArrowLeft, ArrowRight, Sparkles, Target, Star } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
@@ -64,15 +64,19 @@ export default function StudentOnboarding() {
     if (validateStep()) setStep(step + 1); 
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!validateStep()) return;
-    updateUser({ 
-      industries: selectedIndustries, 
-      skills, 
-      goals 
-    });
-    toast.success(t("studentOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎉`);
-    navigate("/student/home");
+    try {
+      await updateUser({ 
+        industries: selectedIndustries, 
+        skills, 
+        goals 
+      });
+      toast.success(t("studentOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎉`);
+      navigate("/student/home");
+    } catch (error) {
+      toast.error("Failed to save profile. Please try again.");
+    }
   };
 
   if (!user) return null;

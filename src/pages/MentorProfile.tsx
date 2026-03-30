@@ -12,10 +12,14 @@ export default function MentorProfile() {
   const navigate = useNavigate();
   const { t, getLocalized } = useLanguage();
 
-  const handleLogout = () => {
-    logout();
-    toast.success(t("loggedOut") || "Successfully logged out");
-    navigate("/");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success(t("loggedOut") || "Successfully logged out");
+      navigate("/");
+    } catch (error) {
+       toast.error("Logout failed");
+    }
   };
 
   if (!isInitialized) return <div className="min-h-screen bg-background flex items-center justify-center">{t("loading")}</div>;
@@ -46,7 +50,7 @@ export default function MentorProfile() {
     { label: t("mentor.dashboard.postOpportunity") || "Manage My Opportunities", icon: Briefcase, action: () => navigate("/mentor/post") },
     { label: t("mentor.dashboard.startDiscussion") || "Community Hub", icon: Users, action: () => navigate("/mentor/community") },
     { label: t("nav.dashboard") || "View Dashboard", icon: LayoutDashboard, action: () => navigate("/mentor/dashboard") },
-    { label: t("student.profile.settingsSoon") || "Account Settings", icon: Settings, action: () => toast.info(t("student.profile.settingsSoon") || "Settings coming soon") },
+    { label: t("profile.settings") || "Settings", icon: Settings, action: () => navigate("/profile/settings") },
   ];
 
   return (
@@ -92,7 +96,7 @@ export default function MentorProfile() {
               <div className="flex items-center gap-2">
                 <LanguageToggle />
                 <button 
-                  onClick={() => toast.info(t("student.profile.editSoon"))}
+                  onClick={() => navigate("/profile/edit")}
                   className="btn-outline border-mentor text-mentor hover:bg-mentor hover:text-white"
                 >
                   <Edit size={16} />{t("student.profile.editProfile")}

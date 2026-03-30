@@ -3,7 +3,7 @@ import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Users, Calendar, MoreVertical, MessageSquare, UserMinus, Shield, Search, X } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
-import { LocalizedString } from "@/lib/mock-data";
+import { LocalizedString } from "@/lib/types";
 
 interface Member {
   id: string;

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Search, Bell, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import { mentors, communities, opportunities, industries } from "@/lib/mock-data";
+import { useMentors } from "@/lib/mentors-context";
+import { useOpportunities } from "@/lib/opportunities-context";
+import { Community, Opportunity, Mentor } from "@/lib/types";
+import { communities, industries } from "@/lib/constants";
 import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { MentorCard } from "@/components/mentor-connect/MentorCard";
 import { CommunityCard } from "@/components/mentor-connect/CommunityCard";
@@ -15,13 +18,17 @@ import { useNavigate } from "react-router-dom";
 
 export default function StudentHome() {
   const { user } = useAuth();
+  const { mentors, isLoading: mentorsLoading } = useMentors();
+  const { opportunities, isLoading: oppsLoading } = useOpportunities();
   const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [selectedIndustry, setSelectedIndustry] = useState("All");
 
-  const filteredMentors = selectedIndustry === "All"
+  const filteredMentors = (selectedIndustry === "All"
     ? mentors.slice(0, 6)
-    : mentors.filter((m) => m.industry === selectedIndustry).slice(0, 6);
+    : mentors.filter((m) => m.industry === selectedIndustry).slice(0, 6));
+
+  const recentOpps = opportunities.slice(0, 3);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -110,11 +117,17 @@ export default function StudentHome() {
                 {t("seeAll") || "See All"} <ArrowRight size={14} />
               </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredMentors.map((mentor) => (
-                <MentorCard key={mentor.id} mentor={mentor} />
-              ))}
-            </div>
+            {mentorsLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredMentors.map((mentor) => (
+                  <MentorCard key={mentor.id} mentor={mentor} />
+                ))}
+              </div>
+            )}
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 pt-4">
@@ -147,11 +160,17 @@ export default function StudentHome() {
                   {t("seeAll") || "See All"}
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-4">
-                {opportunities.slice(0, 3).map((o) => (
-                  <OpportunityCard key={o.id} opportunity={o} />
-                ))}
-              </div>
+              {oppsLoading ? (
+                <div className="space-y-4">
+                  {[...Array(2)].map((_, i) => <div key={i} className="h-40 rounded-2xl bg-muted animate-pulse" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {recentOpps.map((o) => (
+                    <OpportunityCard key={o.id} opportunity={o} />
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         </div>

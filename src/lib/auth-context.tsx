@@ -1,171 +1,215 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
+import { supabase } from "./supabase";
+import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 
-export type Role = "student" | "mentor" | null;
-
-export interface User {
-  name: string;
-  email: string;
-  password?: string;
-  role: Role;
-  avatar?: string;
-  industries?: string[];
-  skills?: string[];
-  goals?: string;
-  company?: string;
-  experience?: number;
-  guidance?: string;
-  savedOpportunities?: string[]; // IDs of saved opportunities
-}
+import { Role, User } from "./types";
 
 interface AuthContextType {
   user: User | null;
   role: Role;
   setRole: (role: Role) => void;
-  login: (user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isInitialized: boolean;
   isNewUser: boolean;
-  signIn: (email: string, password: string) => { success: boolean; error?: string };
-  signUp: (user: User) => { success: boolean; error?: string };
-  updateUser: (data: Partial<User>) => void;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (userData: Omit<User, "id">, password: string) => Promise<{ success: boolean; error?: string }>;
+  updateUser: (data: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "mc_user";
-const ACCOUNTS_KEY = "mc_accounts";
-
-function loadUser(): User | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function loadAccounts(): User[] {
-  try {
-    const raw = localStorage.getItem(ACCOUNTS_KEY);
-    if (raw) return JSON.parse(raw);
-    
-    // Seed default accounts if none exist
-    const defaults: User[] = [
-      {
-        name: "Test Student",
-        email: "student@test.com",
-        password: "password123",
-        role: "student",
-        industries: ["Software", "Design"],
-        skills: ["React", "CSS"],
-        goals: "Learn full-stack development",
-        savedOpportunities: []
-      },
-      {
-        name: "Rahul Deshmukh",
-        email: "mentor@test.com",
-        password: "password123",
-        role: "mentor",
-        company: "TCS Nashik",
-        experience: 12,
-        guidance: "Career guidance and technical mentorship",
-        industries: ["Software"],
-        skills: ["System Design", "React"],
-        savedOpportunities: []
-      }
-    ];
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(defaults));
-    return defaults;
-  } catch {
-    return [];
-  }
-}
-
-function saveAccounts(accounts: User[]) {
-  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [role, setRoleState] = useState<Role>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Profile doesn't exist yet
+          return null;
+        }
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+  };
+
+  const syncUser = useCallback(async (sbUser: SupabaseUser | null) => {
+    if (!sbUser) {
+      setUser(null);
+      setRoleState(null);
+      setIsLoading(false);
+      return;
+    }
+
+    const profile = await fetchProfile(sbUser.id);
+    if (profile) {
+      const mappedUser: User = {
+        id: sbUser.id,
+        email: sbUser.email || '',
+        name: profile.name || '',
+        role: profile.role as Role,
+        avatar: profile.avatar,
+        industries: profile.industries,
+        skills: profile.skills,
+        goals: profile.goals,
+        company: profile.company,
+        experience: profile.experience,
+        guidance: profile.guidance,
+        savedOpportunities: profile.saved_opportunities || [],
+        followers: profile.followers || 0,
+        communities: profile.communities || 0,
+        posts: profile.posts || 0
+      };
+      setUser(mappedUser);
+      setRoleState(mappedUser.role);
+    } else {
+      // User exists in Auth but not in Profiles yet
+      setUser({
+        id: sbUser.id,
+        email: sbUser.email || '',
+        name: sbUser.user_metadata?.name || '',
+        role: sbUser.user_metadata?.role as Role || null,
+      } as User);
+    }
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
-    const storedUser = loadUser();
-    if (storedUser) {
-      setUser(storedUser);
-      setRoleState(storedUser.role);
-    }
-    setIsInitialized(true);
-  }, []);
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      syncUser(session?.user ?? null);
+      setIsInitialized(true);
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      syncUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [syncUser]);
 
   const setRole = useCallback((newRole: Role) => {
     setRoleState(newRole);
   }, []);
 
-  const login = useCallback((userData: User) => {
-    setUser(userData);
-    setRoleState(userData.role);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-  }, []);
+  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setIsLoading(false);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  };
 
-  const logout = useCallback(() => {
+  const signUp = async (userData: Omit<User, "id">, password: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: userData.email,
+      password,
+      options: {
+        data: {
+          name: userData.name,
+          role: userData.role,
+        }
+      }
+    });
+
+    if (error) {
+      setIsLoading(false);
+      return { success: false, error: error.message };
+    }
+
+    if (data.user) {
+      // Create profile entry
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          name: userData.name,
+          role: userData.role,
+          email: userData.email,
+          industries: userData.industries || [],
+          skills: userData.skills || [],
+          saved_opportunities: []
+        });
+
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
+    }
+
+    return { success: true };
+  };
+
+  const logout = async () => {
+    setIsLoading(true);
+    await supabase.auth.signOut();
     setUser(null);
     setRoleState(null);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
+    setIsLoading(false);
+  };
 
-  const updateUser = useCallback((data: Partial<User>) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      const updated = { ...prev, ...data };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      
-      // Also update in accounts list
-      const accounts = loadAccounts();
-      const updatedAccounts = accounts.map(a => a.email === updated.email ? updated : a);
-      saveAccounts(updatedAccounts);
-      
-      return updated;
-    });
-  }, []);
-
-  const signUp = useCallback((userData: User): { success: boolean; error?: string } => {
-    const accounts = loadAccounts();
-    const exists = accounts.find((a) => a.email.toLowerCase() === userData.email.toLowerCase());
-    if (exists) return { success: false, error: "auth.emailExists" };
+  const updateUser = async (data: Partial<User>) => {
+    if (!user) return;
     
-    // Ensure new users have empty profile fields to trigger onboarding
-    const newUser = { 
-      ...userData, 
-      industries: userData.industries || [], 
-      skills: userData.skills || [],
-      savedOpportunities: []
+    // Map application user fields to database table columns
+    const dbData = {
+      name: data.name,
+      role: data.role,
+      avatar: data.avatar,
+      industries: data.industries,
+      skills: data.skills,
+      goals: data.goals,
+      company: data.company,
+      experience: data.experience,
+      guidance: data.guidance,
+      saved_opportunities: data.savedOpportunities
     };
-    
-    accounts.push(newUser);
-    saveAccounts(accounts);
-    login(newUser);
-    return { success: true };
-  }, [login]);
 
-  const signIn = useCallback((email: string, password: string): { success: boolean; error?: string } => {
-    const accounts = loadAccounts();
-    const found = accounts.find(
-      (a) => a.email.toLowerCase() === email.toLowerCase() && a.password === password
-    );
-    if (!found) return { success: false, error: "auth.invalidCredentials" };
-    login(found);
-    return { success: true };
-  }, [login]);
+    // Remove undefined values
+    Object.keys(dbData).forEach(key => (dbData as any)[key] === undefined && delete (dbData as any)[key]);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(dbData)
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+
+    // syncUser will be triggered by profile update if we were listening to profile changes,
+    // but here we can just update local state for speed.
+    setUser(prev => prev ? { ...prev, ...data } : null);
+  };
 
   const isNewUser = !!user && (!user.industries || user.industries.length === 0);
 
   return (
     <AuthContext.Provider value={{ 
-      user, role, setRole, login, logout, 
-      isAuthenticated: !!user, isInitialized, isNewUser,
+      user, role, setRole, logout, 
+      isAuthenticated: !!user, isInitialized, isNewUser, isLoading,
       signIn, signUp, updateUser 
     }}>
       {children}

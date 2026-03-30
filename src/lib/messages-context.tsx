@@ -1,104 +1,156 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
+import { supabase } from "./supabase";
+import { useAuth } from "./auth-context";
 
-export interface PersonalMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar: string;
-  text: string;
-  timestamp: string;
-  time: string;
-}
-
-export interface Conversation {
-  id: string; // mentorId or userId
-  participantName: string;
-  participantAvatar: string;
-  participantRole: "mentor" | "student";
-  messages: PersonalMessage[];
-  lastMessage?: string;
-  lastTime?: string;
-  unread: number;
-}
+import { PersonalMessage, Conversation } from "./types";
 
 interface MessagesContextType {
   conversations: Conversation[];
+  isLoading: boolean;
   getConversation: (id: string) => Conversation | undefined;
-  sendMessage: (conversationId: string, text: string, sender: { id: string; name: string; avatar: string }) => void;
-  startConversation: (mentor: { id: string; name: string; avatar: string }) => void;
+  sendMessage: (conversationId: string, text: string) => Promise<void>;
+  startConversation: (participant: { id: string; name: string; avatar: string; role: "mentor" | "student" }) => Promise<void>;
 }
 
 const MessagesContext = createContext<MessagesContextType | undefined>(undefined);
 
-const STORAGE_KEY = "mc_messages";
-
-function loadConversations(): Conversation[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveConversations(convs: Conversation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(convs));
-}
-
 export function MessagesProvider({ children }: { children: ReactNode }) {
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+
+  const fetchConversations = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    
+    try {
+      // Direct message fetch for simplicity in Phase 1 (Basic Fetch on Load)
+      // This fetches all messages where the user is sender or receiver
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Group messages by the "other" person to form conversations
+      const convMap: Record<string, Conversation> = {};
+
+      for (const msg of data) {
+        const otherId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+        
+        if (!convMap[otherId]) {
+          // Fetch participant info if not in cache (optimized version would join in SQL)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, avatar, role')
+            .eq('id', otherId)
+            .single();
+
+          convMap[otherId] = {
+            id: otherId,
+            participantName: profile?.name || 'Unknown',
+            participantAvatar: profile?.avatar || '',
+            participantRole: profile?.role as "mentor" | "student" || 'student',
+            messages: [],
+            unread: 0
+          };
+        }
+
+        const date = new Date(msg.created_at);
+        const mappedMsg: PersonalMessage = {
+          id: msg.id,
+          senderId: msg.sender_id,
+          senderName: msg.sender_id === user.id ? user.name : convMap[otherId].participantName,
+          senderAvatar: msg.sender_id === user.id ? user.avatar || '' : convMap[otherId].participantAvatar,
+          text: msg.text,
+          timestamp: msg.created_at,
+          time: date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+        };
+
+        convMap[otherId].messages.push(mappedMsg);
+        convMap[otherId].lastMessage = msg.text;
+        convMap[otherId].lastTime = mappedMsg.time;
+      }
+
+      setConversations(Object.values(convMap));
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   const getConversation = useCallback(
     (id: string) => conversations.find((c) => c.id === id),
     [conversations]
   );
 
-  const startConversation = useCallback((mentor: { id: string; name: string; avatar: string }) => {
+  const startConversation = useCallback(async (participant: { id: string; name: string; avatar: string; role: "mentor" | "student" }) => {
     setConversations((prev) => {
-      if (prev.find((c) => c.id === mentor.id)) return prev;
-      const updated = [
+      if (prev.find((c) => c.id === participant.id)) return prev;
+      return [
         ...prev,
         {
-          id: mentor.id,
-          participantName: mentor.name,
-          participantAvatar: mentor.avatar,
-          participantRole: "mentor" as const,
+          id: participant.id,
+          participantName: participant.name,
+          participantAvatar: participant.avatar,
+          participantRole: participant.role,
           messages: [],
           unread: 0,
         },
       ];
-      saveConversations(updated);
-      return updated;
     });
   }, []);
 
   const sendMessage = useCallback(
-    (conversationId: string, text: string, sender: { id: string; name: string; avatar: string }) => {
-      const now = new Date();
-      const msg: PersonalMessage = {
-        id: `m_${Date.now()}`,
-        senderId: sender.id,
-        senderName: sender.name,
-        senderAvatar: sender.avatar,
+    async (conversationId: string, text: string) => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user.id,
+          receiver_id: conversationId,
+          text: text
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error sending message:', error);
+        throw error;
+      }
+
+      const date = new Date(data.created_at);
+      const newMsg: PersonalMessage = {
+        id: data.id,
+        senderId: user.id,
+        senderName: user.name,
+        senderAvatar: user.avatar || '',
         text,
-        timestamp: now.toISOString(),
-        time: now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+        timestamp: data.created_at,
+        time: date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
       };
+
       setConversations((prev) => {
-        const updated = prev.map((c) =>
+        return prev.map((c) =>
           c.id === conversationId
-            ? { ...c, messages: [...c.messages, msg], lastMessage: text, lastTime: msg.time, unread: 0 }
+            ? { ...c, messages: [...c.messages, newMsg], lastMessage: text, lastTime: newMsg.time, unread: 0 }
             : c
         );
-        saveConversations(updated);
-        return updated;
       });
     },
-    []
+    [user]
   );
 
   return (
-    <MessagesContext.Provider value={{ conversations, getConversation, sendMessage, startConversation }}>
+    <MessagesContext.Provider value={{ conversations, isLoading, getConversation, sendMessage, startConversation }}>
       {children}
     </MessagesContext.Provider>
   );

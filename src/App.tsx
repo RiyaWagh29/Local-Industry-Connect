@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { MessagesProvider } from "@/lib/messages-context";
 import { ResourcesProvider } from "@/lib/resources-context";
+import { OpportunitiesProvider } from "@/lib/opportunities-context";
+import { MentorsProvider } from "@/lib/mentors-context";
 
 import SplashScreen from "./pages/SplashScreen";
 import AuthPage from "./pages/AuthPage";
@@ -34,9 +36,9 @@ const queryClient = new QueryClient();
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?: string[] }) => {
-  const { isAuthenticated, user, isInitialized } = useAuth();
+  const { isAuthenticated, user, isInitialized, isLoading } = useAuth();
   
-  if (!isInitialized) return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+  if (!isInitialized || isLoading) return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (roles && user && !roles.includes(user.role as string)) return <Navigate to="/" replace />;
   
@@ -44,9 +46,9 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?
 };
 
 const AppRoutes = () => {
-  const { isInitialized } = useAuth();
+  const { isInitialized, isLoading } = useAuth();
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
   }
 
@@ -83,6 +85,7 @@ const AppRoutes = () => {
       <Route path="/mentor/members" element={<ProtectedRoute roles={["mentor"]}><MentorMembers /></ProtectedRoute>} />
       <Route path="/mentor/profile" element={<ProtectedRoute roles={["mentor"]}><MentorProfile /></ProtectedRoute>} />
       <Route path="/mentor/profile/:id" element={<ProtectedRoute><PublicMentorProfile /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
@@ -92,15 +95,19 @@ const App = () => (
     <TooltipProvider>
       <LanguageProvider>
         <AuthProvider>
-          <MessagesProvider>
-            <ResourcesProvider>
-              <Toaster />
-              <Sonner position="top-center" />
-              <BrowserRouter>
-                <AppRoutes />
-              </BrowserRouter>
-            </ResourcesProvider>
-          </MessagesProvider>
+          <MentorsProvider>
+            <OpportunitiesProvider>
+              <MessagesProvider>
+                <ResourcesProvider>
+                  <Toaster />
+                  <Sonner position="top-center" />
+                  <BrowserRouter>
+                    <AppRoutes />
+                  </BrowserRouter>
+                </ResourcesProvider>
+              </MessagesProvider>
+            </OpportunitiesProvider>
+          </MentorsProvider>
         </AuthProvider>
       </LanguageProvider>
     </TooltipProvider>

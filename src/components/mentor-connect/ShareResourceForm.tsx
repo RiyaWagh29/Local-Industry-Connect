@@ -32,34 +32,35 @@ export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
     
-    setTimeout(() => {
-      // Create localized object from input (defaulting both to same value for user input)
+    try {
+      // Create objects from input
       const localizedTitle = { en: title.trim(), mr: title.trim() };
       const localizedDesc = { en: description.trim(), mr: description.trim() };
-      const localizedSharedBy = { en: user?.name || "Mentor", mr: user?.name || "मार्गदर्शक" };
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-      const localizedDate = { en: dateStr, mr: dateStr }; // simplifying for now
+      const authorName = user?.name || "Mentor";
 
-      addResource(
+      await addResource(
         { 
           title: localizedTitle as any, 
           description: localizedDesc as any, 
           url: url.trim(), 
           type 
         },
-        localizedSharedBy as any
+        authorName
       );
       
       toast.success(t("resource.share.success") || "Resource shared successfully!");
-      setLoading(false);
       onClose();
-    }, 600);
+    } catch (error) {
+       console.error('Error sharing resource:', error);
+       toast.error("Failed to share resource");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const typeOptions: { value: ResourceType; label: string; icon: any }[] = [

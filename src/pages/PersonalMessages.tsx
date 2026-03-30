@@ -7,12 +7,13 @@ import { useLanguage } from "@/lib/language-context";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
+import { toast } from "sonner";
 
 export default function PersonalMessages() {
   const { id: paramId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { conversations, getConversation, sendMessage } = useMessages();
+  const { conversations, getConversation, sendMessage, isLoading } = useMessages();
   const { t } = useLanguage();
 
   const [selectedId, setSelectedId] = useState<string | null>(paramId ?? null);
@@ -29,15 +30,16 @@ export default function PersonalMessages() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeConv?.messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || !selectedId || !user) return;
-    sendMessage(selectedId, trimmed, {
-      id: "me",
-      name: user.name,
-      avatar: "",
-    });
-    setInput("");
+    
+    try {
+      await sendMessage(selectedId, trimmed);
+      setInput("");
+    } catch (error) {
+      toast.error("Failed to send message");
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -153,7 +155,7 @@ export default function PersonalMessages() {
                     </div>
                   )}
                   {activeConv.messages.map((msg) => {
-                    const isMe = msg.senderId === "me";
+                    const isMe = msg.senderId === user?.id;
                     return (
                       <div key={msg.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
                         {!isMe && (

@@ -1,4 +1,4 @@
-import { communities } from "@/lib/mock-data";
+import { communities } from "@/lib/constants";
 import { CommunityCard } from "@/components/mentor-connect/CommunityCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { useLanguage } from "@/lib/language-context";

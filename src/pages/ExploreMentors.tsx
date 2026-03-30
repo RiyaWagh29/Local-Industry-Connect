@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Search, Filter, X } from "lucide-react";
-import { mentors, industries } from "@/lib/mock-data";
+import { Search, Filter, X, Users } from "lucide-react";
+import { industries } from "@/lib/constants";
 import { useLanguage } from "@/lib/language-context";
+import { useMentors } from "@/lib/mentors-context";
 import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { MentorCard } from "@/components/mentor-connect/MentorCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
@@ -9,6 +10,7 @@ import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 export default function ExploreMentors() {
   const [query, setQuery] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState("All");
+  const { mentors, isLoading } = useMentors();
   const { t, getLocalized } = useLanguage();
 
   const filtered = mentors.filter((m) => {
@@ -28,7 +30,7 @@ export default function ExploreMentors() {
             <p className="text-body text-muted-foreground mt-2">{t("explore.subtitle") || "Find and connect with industry experts from Nashik."}</p>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-4 border-b border-border pb-6">
             <div className="relative flex-1 group">
               <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <input 
@@ -64,32 +66,42 @@ export default function ExploreMentors() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filtered.map((mentor) => (
-              <MentorCard key={mentor.id} mentor={mentor} />
-            ))}
-          </div>
-
-          {filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                <Search size={40} className="text-muted-foreground opacity-20" />
-              </div>
-              <div>
-                <h3 className="text-h3 font-bold text-foreground">
-                  {t("explore.noMentors") || "No mentors found"}
-                </h3>
-                <p className="text-body text-muted-foreground mt-1">
-                  {t("explore.tryDifferentSearch") || "Try adjusting your search or filters to find what you're looking for."}
-                </p>
-              </div>
-              <button 
-                onClick={() => { setQuery(""); setSelectedIndustry("All"); }}
-                className="text-primary font-bold hover:underline"
-              >
-                {t("explore.clearFilters") || "Clear all filters"}
-              </button>
+          {isLoading ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />
+              ))}
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filtered.map((mentor) => (
+                  <MentorCard key={mentor.id} mentor={mentor} />
+                ))}
+              </div>
+
+              {filtered.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                    <Search size={40} className="text-muted-foreground opacity-20" />
+                  </div>
+                  <div>
+                    <h3 className="text-h3 font-bold text-foreground">
+                      {t("explore.noMentors") || "No mentors found"}
+                    </h3>
+                    <p className="text-body text-muted-foreground mt-1">
+                      {t("explore.tryDifferentSearch") || "Try adjusting your search or filters to find what you're looking for."}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setQuery(""); setSelectedIndustry("All"); }}
+                    className="text-primary font-bold hover:underline"
+                  >
+                    {t("explore.clearFilters") || "Clear all filters"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

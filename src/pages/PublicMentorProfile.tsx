@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, UserPlus, MessageSquare, Award, Star, Briefcase, ChevronRight, Check, Info } from "lucide-react";
-import { mentors, opportunities } from "@/lib/mock-data";
-import { useLanguage } from "@/lib/language-context";
-import { useMessages } from "@/lib/messages-context";
-import { SkillTag } from "@/components/mentor-connect/SkillTag";
+import { 
+  ArrowLeft, Share2, Award, Briefcase, GraduationCap, 
+  MessageSquare, Star, Globe, Linkedin, Twitter, 
+  CheckCircle2, ShieldCheck, Heart, Users, ChevronRight, Check, Info, UserPlus
+} from "lucide-react";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
+import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
+import { useMessages } from "@/lib/messages-context";
+import { useOpportunities } from "@/lib/opportunities-context";
+import { useMentors } from "@/lib/mentors-context";
+import { Mentor } from "@/lib/types";
 import { toast } from "sonner";
 
 export default function PublicMentorProfile() {
@@ -13,9 +19,32 @@ export default function PublicMentorProfile() {
   const navigate = useNavigate();
   const { t, getLocalized } = useLanguage();
   const { startConversation } = useMessages();
-  const mentor = mentors.find((m) => m.id === id);
+  const { opportunities } = useOpportunities();
+  const { getMentorById } = useMentors();
+  
+  const [mentor, setMentor] = useState<Mentor | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("about");
   const [following, setFollowing] = useState(false);
+
+  useEffect(() => {
+    const fetchMentor = async () => {
+      if (!id) return;
+      setIsLoading(true);
+      const data = await getMentorById(id);
+      setMentor(data);
+      setIsLoading(false);
+    };
+    fetchMentor();
+  }, [id, getMentorById]);
+
+  if (isLoading) return (
+    <ResponsiveLayout>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    </ResponsiveLayout>
+  );
 
   if (!mentor) return (
     <ResponsiveLayout>
@@ -49,12 +78,13 @@ export default function PublicMentorProfile() {
     navigate("/student/communities");
   };
 
-  const handleMessage = () => {
-    startConversation({ 
+  const handleMessage = async () => {
+    await startConversation({ 
       id: mentor.id, 
       name: getLocalized(mentor.name), 
-      avatar: mentor.avatar 
-    } as any);
+      avatar: mentor.avatar,
+      role: 'mentor'
+    });
     navigate(`/messages/${mentor.id}`);
   };
 

@@ -53,30 +53,25 @@ export default function AuthPage() {
     if (!validate()) return;
     setLoading(true);
 
-    // Simulate network delay
-    await new Promise(r => setTimeout(r, 600));
-
     if (authTab === "signin") {
-      const result = signIn(email, password);
+      const result = await signIn(email, password);
       if (result.success) {
         toast.success(t("auth.loginSuccess"));
-        // Redirection is handled by the useEffect
       } else {
         toast.error(t(result.error || "auth.invalidCredentials"));
       }
     } else {
       setRole(roleTab);
-      const result = signUp({
+      const result = await signUp({
         name: name.trim(),
         email: email.trim(),
-        password,
         role: roleTab,
         industries: [],
         skills: [],
-      });
+      }, password);
+      
       if (result.success) {
         toast.success(t("auth.signupSuccess"));
-        // Redirection is handled by the useEffect
       } else {
         toast.error(t(result.error || "auth.emailExists"));
       }

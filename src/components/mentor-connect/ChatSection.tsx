@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Hash } from "lucide-react";
-import { chatMessages, ChatMessage } from "@/lib/mock-data";
+import { chatMessages } from "@/lib/constants";
+import { ChatMessage } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";

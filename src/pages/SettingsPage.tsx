@@ -89,13 +89,34 @@ export default function SettingsPage() {
           </section>
 
           {/* Logout Section */}
-          <button
-            onClick={handleLogout}
-            className="btn-destructive w-full"
-          >
-            <LogOut size={18} />
-            {t("logout")}
-          </button>
+          <div className="space-y-4 pt-4 border-t border-border">
+            {import.meta.env.DEV && (
+              <button
+                onClick={async () => {
+                  try {
+                    const { seedDatabase } = await import("@/lib/seed");
+                    await seedDatabase();
+                    toast.success("Database seeded successfully! 🎉");
+                  } catch (error) {
+                    console.error("Seed failed:", error);
+                    toast.error("Seed failed. Check console.");
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-amber-500/10 text-amber-600 border border-amber-500/20 text-body font-bold hover:bg-amber-500/20 transition-all mb-4"
+              >
+                <Info size={18} />
+                Seed Platform Data (Dev Only)
+              </button>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="btn-destructive w-full"
+            >
+              <LogOut size={18} />
+              {t("logout")}
+            </button>
+          </div>
         </div>
       </div>
     </ResponsiveLayout>

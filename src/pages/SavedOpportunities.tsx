@@ -1,18 +1,17 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
+import { useOpportunities } from "@/lib/opportunities-context";
 import { ArrowLeft, Bookmark, Search } from "lucide-react";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
-import { opportunities } from "@/lib/mock-data";
 import { OpportunityCard } from "@/components/mentor-connect/OpportunityCard";
 
 export default function SavedOpportunities() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { t } = useLanguage();
+  const { opportunities, savedOpportunityIds, isLoading } = useOpportunities();
 
-  const savedIds = user?.savedOpportunities || [];
-  const savedOpps = opportunities.filter((opp) => savedIds.includes(opp.id));
+  const savedOpps = opportunities.filter((opp) => savedOpportunityIds.includes(opp.id));
 
   return (
     <ResponsiveLayout>
@@ -30,7 +29,13 @@ export default function SavedOpportunities() {
         </div>
 
         <div className="max-w-3xl mx-auto px-4 py-8">
-          {savedOpps.length > 0 ? (
+          {isLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="h-64 rounded-2xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : savedOpps.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {savedOpps.map((opp) => (
                 <OpportunityCard key={opp.id} opportunity={opp} />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Users, Shield, Award, Info, Share2 } from "lucide-react";
-import { communities } from "@/lib/mock-data";
+import { communities } from "@/lib/constants";
 import { useLanguage } from "@/lib/language-context";
 import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
@@ -66,12 +66,12 @@ export default function CommunityScreen() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h1 className="text-h2 text-foreground truncate">{getLocalized(community.name)}</h1>
-                    <Shield size={18} className="text-primary/60 shrink-0" title="Verified Community" />
+                    <Shield size={18} className="text-primary/60 shrink-0" />
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-caption text-muted-foreground font-medium">
-                    <div className="flex items-center gap-1.5 hover:text-primary cursor-pointer transition-colors" onClick={() => navigate(`/mentor/${community.mentorId}`)}>
-                      <img src={community.mentorAvatar} alt="" className="w-5 h-5 rounded-full border border-border" />
-                      <span>{getLocalized(community.mentorName)}</span>
+                    <div className="flex items-center gap-1.5 hover:text-primary cursor-pointer transition-colors" onClick={() => community.mentorId && navigate(`/mentor/profile/${community.mentorId}`)}>
+                      <img src={community.mentorAvatar || ""} alt="" className="w-5 h-5 rounded-full border border-border" />
+                      <span>{getLocalized(community.mentorName || { en: 'Expert', mr: 'तज्ज्ञ' })}</span>
                       <Award size={12} className="text-mentor" />
                     </div>
                     <span className="opacity-30">•</span>

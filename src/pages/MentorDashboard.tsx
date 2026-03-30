@@ -2,6 +2,7 @@ import { Bell, Settings, Plus, Share2, MessageSquare, Users, TrendingUp, Award, 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
+import { useOpportunities } from "@/lib/opportunities-context";
 import { StatCard } from "@/components/mentor-connect/StatCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Logo } from "@/components/mentor-connect/Logo";
@@ -13,13 +14,16 @@ import { toast } from "sonner";
 export default function MentorDashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { opportunities } = useOpportunities();
   const navigate = useNavigate();
   const [showShareForm, setShowShareForm] = useState(false);
 
+  const mentorOppsCount = opportunities.filter(o => o.mentorId === user?.id).length;
+
   const stats = [
-    { label: t("mentor.dashboard.totalFollowers") || "Total Followers", value: "1,240", icon: Users, variant: "mentor" },
-    { label: t("mentor.dashboard.communityMembers") || "Community Members", value: "450", icon: Award, variant: "mentor" },
-    { label: t("mentor.dashboard.opportunitiesPosted") || "Opps Posted", value: "12", icon: Briefcase, variant: "primary" },
+    { label: t("mentor.dashboard.totalFollowers") || "Total Followers", value: user?.followers?.toLocaleString() || "1,240", icon: Users, variant: "mentor" },
+    { label: t("mentor.dashboard.communityMembers") || "Community Members", value: user?.communities?.toLocaleString() || "450", icon: Award, variant: "mentor" },
+    { label: t("mentor.dashboard.opportunitiesPosted") || "Opps Posted", value: mentorOppsCount.toString(), icon: Briefcase, variant: "primary" },
     { label: t("mentor.dashboard.weeklyReach") || "Weekly Reach", value: "3.2K", icon: TrendingUp, variant: "default" },
   ];
 

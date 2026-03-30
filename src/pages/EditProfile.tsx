@@ -16,7 +16,7 @@ export default function EditProfile() {
   const [goals, setGoals] = useState(user?.goals || "");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) {
       toast.error(t("auth.nameRequired"));
@@ -24,12 +24,15 @@ export default function EditProfile() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      updateUser({ name, email, goals });
+    try {
+      await updateUser({ name, email, goals });
       toast.success(t("student.profile.editSuccess"));
+      navigate(-1);
+    } catch (error) {
+      toast.error("Failed to update profile");
+    } finally {
       setLoading(false);
-      navigate("/student/profile");
-    }, 600);
+    }
   };
 
   return (

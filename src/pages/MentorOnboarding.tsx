@@ -7,7 +7,7 @@ import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { SkillTag } from "@/components/mentor-connect/SkillTag";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
-import { industries } from "@/lib/mock-data";
+import { industries } from "@/lib/constants";
 import { ArrowLeft, ArrowRight, Briefcase, Award, Target, Star, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -67,17 +67,21 @@ export default function MentorOnboarding() {
 
   const handleNext = () => { if (validateStep()) setStep(step + 1); };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     if (!validateStep()) return;
-    updateUser({ 
-      industries: [selectedIndustry], 
-      skills, 
-      company, 
-      experience, 
-      guidance 
-    });
-    toast.success(t("mentorOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎓`);
-    navigate("/mentor/dashboard");
+    try {
+      await updateUser({ 
+        industries: [selectedIndustry], 
+        skills, 
+        company, 
+        experience, 
+        guidance 
+      });
+      toast.success(t("mentorOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎓`);
+      navigate("/mentor/dashboard");
+    } catch (error) {
+      toast.error("Failed to save profile. Please try again.");
+    }
   };
 
   if (!user) return null;

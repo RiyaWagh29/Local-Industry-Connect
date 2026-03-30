@@ -3,27 +3,21 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
-import { LocalizedString } from "@/lib/mock-data";
+import { useOpportunities } from "@/lib/opportunities-context";
+import { Opportunity } from "@/lib/types";
 
 interface OpportunityCardProps {
-  opportunity: {
-    id: string;
-    title: LocalizedString;
-    type: string;
-    company: string;
-    location: LocalizedString;
-    deadline: string;
-    mentorName: LocalizedString;
-  };
+  opportunity: Opportunity;
   onApply?: () => void;
 }
 
 export function OpportunityCard({ opportunity, onApply }: OpportunityCardProps) {
   const { getLocalized, t } = useLanguage();
-  const { user, updateUser, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { savedOpportunityIds, toggleSaveOpportunity } = useOpportunities();
   const [applied, setApplied] = useState(false);
 
-  const isSaved = user?.savedOpportunities?.includes(opportunity.id) || false;
+  const isSaved = savedOpportunityIds.includes(opportunity.id);
 
   const typeBadgeClass =
     opportunity.type === "Internship"
@@ -32,23 +26,23 @@ export function OpportunityCard({ opportunity, onApply }: OpportunityCardProps) 
       ? "bg-blue-500/10 text-blue-600"
       : "bg-amber-500/10 text-amber-600";
 
-  const handleSave = (e: React.MouseEvent) => {
+  const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isAuthenticated) {
       toast.error(t("auth.signInToViewProfile") || "Please sign in to save opportunities");
       return;
     }
 
-    const currentSaved = user?.savedOpportunities || [];
-    let newSaved;
-    if (isSaved) {
-      newSaved = currentSaved.filter(id => id !== opportunity.id);
-      toast.success(t("opps.removedBookmark") || "Bookmark removed");
-    } else {
-      newSaved = [...currentSaved, opportunity.id];
-      toast.success(t("opps.addedBookmark") || "Bookmarked! 🔖");
+    try {
+      await toggleSaveOpportunity(opportunity.id);
+      if (isSaved) {
+        toast.success(t("opps.removedBookmark") || "Bookmark removed");
+      } else {
+        toast.success(t("opps.addedBookmark") || "Bookmarked! 🔖");
+      }
+    } catch (error) {
+       toast.error("Failed to update bookmark");
     }
-    updateUser({ savedOpportunities: newSaved });
   };
 
   const handleApply = (e: React.MouseEvent) => {

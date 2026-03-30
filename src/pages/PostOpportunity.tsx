@@ -5,6 +5,9 @@ import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { toast } from "sonner";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
+import { useOpportunities } from "@/lib/opportunities-context";
 
 const opportunityTypes = ["Internship", "Job", "Workshop", "Mentorship Call", "Resource"];
 
@@ -20,6 +23,8 @@ interface FormErrors {
 export default function PostOpportunity() {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const { fetchOpportunities } = useOpportunities();
   const [title, setTitle] = useState("");
   const [type, setType] = useState("");
   const [company, setCompany] = useState("");
@@ -45,15 +50,37 @@ export default function PostOpportunity() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+
     if (validate()) {
       setIsSubmitting(true);
-      setTimeout(() => {
+      try {
+        const { error } = await supabase
+          .from('opportunities')
+          .insert({
+            title: { en: title, mr: title }, 
+            type,
+            company,
+            location: { en: remote ? "Remote" : location, mr: remote ? "रिमोट" : location },
+            description: { en: description, mr: description },
+            deadline,
+            mentor_id: user.id,
+            industry: 'Software'
+          });
+
+        if (error) throw error;
+
         toast.success(t("postOpp.success") || "Opportunity posted successfully! 🎉");
-        setIsSubmitting(false);
+        await fetchOpportunities();
         navigate("/mentor/dashboard");
-      }, 800);
+      } catch (error) {
+        console.error('Error posting opportunity:', error);
+        toast.error("Failed to post opportunity");
+      } finally {
+        setIsSubmitting(false);
+      }
     } else {
       toast.error(t("error.fillFields") || "Please fill in all fields correctly");
     }

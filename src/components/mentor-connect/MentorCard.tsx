@@ -1,18 +1,10 @@
 import { Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/language-context";
-import { LocalizedString } from "@/lib/mock-data";
+import { LocalizedString, Mentor } from "@/lib/types";
 
 interface MentorCardProps {
-  mentor: {
-    id: string;
-    name: LocalizedString;
-    role: string | LocalizedString;
-    company: string;
-    industry: string;
-    avatar: string;
-    followers: number;
-  };
+  mentor: Mentor;
 }
 
 export function MentorCard({ mentor }: MentorCardProps) {

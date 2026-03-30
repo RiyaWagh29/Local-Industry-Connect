@@ -1,6 +1,6 @@
 import { FileText, Link, Video, File, Download, User, Calendar } from "lucide-react";
 import { useResources } from "@/lib/resources-context";
-import { SharedResource } from "@/lib/mock-data";
+import { SharedResource } from "@/lib/types";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 
