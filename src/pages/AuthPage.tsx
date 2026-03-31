@@ -41,7 +41,7 @@ export default function AuthPage() {
     const errs: Record<string, string> = {};
     if (authTab === "signup" && !name.trim()) errs.name = t("auth.nameRequired");
     if (!email.trim()) errs.email = t("auth.emailRequired");
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = t("auth.invalidEmail");
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = t("auth.invalidEmail");
     if (!password) errs.password = t("auth.passwordRequired");
     else if (password.length < 6) errs.password = t("auth.passwordShort");
     setErrors(errs);
