@@ -32,17 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", userId)
-      .maybeSingle();
+      .eq("id", userId);
 
     if (error) {
-      console.error("Fetch profile error:", error);
+      console.error("Fetch error:", error);
       return null;
     }
 
-    return data;
+    return data?.[0] || null;
   };
-
   // 🔄 Sync user (🔥 FIXED)
   const syncUser = useCallback(async (sbUser: SupabaseUser | null) => {
     if (!sbUser) {
@@ -67,7 +65,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         skills: [],
       });
 
-      console.log("AUTO CREATE ERROR:", error);
+      if (error) {
+        console.error("❌ PROFILE INSERT FAILED:", error);
+      } else {
+        console.log("✅ PROFILE CREATED SUCCESSFULLY");
+      }
 
       // fetch again
       profile = await fetchProfile(sbUser.id);
