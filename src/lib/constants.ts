@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Community, LocalizedString } from "./types";
 
 export const industries = [
@@ -11,32 +12,11 @@ export const industries = [
   "Civil",
 ];
 
-export const communities: Community[] = [
-  {
-    id: "c1",
-    name: { en: "Software Developers Network", mr: "सॉफ्टवेअर डेव्हलपर्स नेटवर्क" },
-    description: { en: "Connect with developers across Nashik.", mr: "नाशिकमधील डेव्हलपर्सशी कनेक्ट व्हा." },
-    members: 1240,
-    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=150&h=150&fit=crop",
-    category: "Technology",
-  },
-  {
-    id: "c2",
-    name: { en: "AgriTech Innovators", mr: "अॅग्रीटेक इनोव्हेटर्स" },
-    description: { en: "Innovating agriculture in Maharashtra.", mr: "महाराष्ट्रातील शेतीमध्ये नावीन्य आणणे." },
-    members: 850,
-    image: "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?w=150&h=150&fit=crop",
-    category: "Agriculture",
-  },
-  {
-    id: "c3",
-    name: { en: "Nashik Startup Ecosystem", mr: "नाशिक स्टार्टअप इकोसिस्टम" },
-    description: { en: "Hub for entrepreneurs and founders.", mr: "उद्योजक आणि संस्थापकांसाठी केंद्र." },
-    members: 2100,
-    image: "https://images.unsplash.com/photo-1556761175-b413da4baf72?w=150&h=150&fit=crop",
-    category: "Business",
-  },
-];
+const [communities, setCommunities] = useState([]);
+
+useEffect(() => {
+  fetchCommunities(); // or keep empty for now
+}, []);
 
 export const chatMessages: any[] = [
   { 
