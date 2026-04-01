@@ -124,41 +124,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
-      password,
-      options: {
-        data: {
-          name: userData.name,
-          role: userData.role,
-        }
-      }
+      password
     });
+
+    console.log("AUTH RESPONSE:", data, error);
 
     if (error) {
       setIsLoading(false);
-      return { success: false, error: { message: error.message, status: error.status } };
+      return { success: false, error: { message: error.message } };
     }
 
     if (data.user) {
+      console.log("SIGNUP DATA:", userData);
+
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: data.user.id,
           name: userData.name,
           role: userData.role,
-          bio: '',
-          interests: userData.industries || []
+          email: userData.email,
+          industries: userData.industries || [],
+          skills: userData.skills || [],
+          goals: userData.goals || null
         });
 
+      console.log("PROFILE ERROR:", profileError);
+
       if (profileError) {
-        console.error("PROFILE ERROR:", profileError);
-        setIsLoading(false);
         return { success: false, error: { message: profileError.message } };
       }
     }
 
     return { success: true };
   };
-
   // 🚪 LOGOUT
   const logout = async () => {
     setIsLoading(true);
