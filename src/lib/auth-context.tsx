@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error.code === 'PGRST116') return null;
         throw error;
       }
+
       return data;
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -64,22 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: sbUser.email || '',
         name: profile.name || '',
         role: profile.role as Role,
-        avatar: profile.avatar,
-        industries: profile.industries,
-        skills: profile.skills,
-        goals: profile.goals,
-        company: profile.company,
-        experience: profile.experience,
-        guidance: profile.guidance,
-        savedOpportunities: profile.saved_opportunities || [],
-        followers: profile.followers || 0,
-        communities: profile.communities || 0,
-        posts: profile.posts || 0
-      };
+        industries: profile.interests || []
+      } as User;
+
       setUser(mappedUser);
       setRoleState(mappedUser.role);
     } else {
-      // fallback if profile not yet created
       setUser({
         id: sbUser.id,
         email: sbUser.email || '',
@@ -127,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: true };
   };
 
-  // 🆕 SIGN UP (FIXED)
+  // 🆕 SIGN UP (FINAL FIXED)
   const signUp = async (userData: Omit<User, "id">, password: string) => {
     setIsLoading(true);
 
@@ -142,28 +133,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    console.log("Signup response:", data, error);
-
     if (error) {
       setIsLoading(false);
       return { success: false, error: { message: error.message, status: error.status } };
     }
 
     if (data.user) {
-      // ✅ FIX: use UPSERT instead of INSERT
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: data.user.id,
           name: userData.name,
           role: userData.role,
-          email: userData.email,
-          industries: userData.industries || [],
-          skills: userData.skills || [],
-          saved_opportunities: []
+          bio: '',
+          interests: userData.industries || []
         });
 
-      console.log("PROFILE UPSERT ERROR:", profileError);
+      if (profileError) {
+        console.error("PROFILE ERROR:", profileError);
+        setIsLoading(false);
+        return { success: false, error: { message: profileError.message } };
+      }
     }
 
     return { success: true };
@@ -178,41 +168,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
-  // 🔄 UPDATE USER (FIXED)
+  // 🔄 UPDATE USER (FINAL FIXED)
   const updateUser = async (data: Partial<User>) => {
-    console.log("User ID:", user?.id);
-    console.log("Updating profile with:", data);
     if (!user) return;
 
-    const dbData = {
+    const dbData: any = {
+      id: user.id,
       name: data.name,
       role: data.role,
-      avatar: data.avatar,
-      industries: data.industries,
-      skills: data.skills,
-      goals: data.goals,
-      company: data.company,
-      experience: data.experience,
-      guidance: data.guidance,
-      saved_opportunities: data.savedOpportunities
+      bio: data.bio,
+      interests: data.industries || data.interests
     };
 
     Object.keys(dbData).forEach(key =>
-      (dbData as any)[key] === undefined && delete (dbData as any)[key]
+      dbData[key] === undefined && delete dbData[key]
     );
 
-    // ✅ FIX: use UPSERT instead of UPDATE
-    console.log("DB Payload:", dbData);
     const { error } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
-        ...dbData
-      });
-
-    console.log("PROFILE UPDATE ERROR:", error);
+      .upsert(dbData);
 
     if (error) {
+      console.error("UPDATE ERROR:", error);
       throw error;
     }
 
