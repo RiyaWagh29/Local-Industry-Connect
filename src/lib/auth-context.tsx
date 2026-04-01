@@ -180,6 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 🔄 UPDATE USER (FIXED)
   const updateUser = async (data: Partial<User>) => {
+    console.log("User ID:", user?.id);
+    console.log("Updating profile with:", data);
     if (!user) return;
 
     const dbData = {
@@ -200,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // ✅ FIX: use UPSERT instead of UPDATE
+    console.log("DB Payload:", dbData);
     const { error } = await supabase
       .from('profiles')
       .upsert({
