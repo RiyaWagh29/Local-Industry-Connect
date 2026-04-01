@@ -13,8 +13,8 @@ interface AuthContextType {
   isInitialized: boolean;
   isNewUser: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (userData: Omit<User, "id">, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: { message: string; status?: number } }>;
+  signUp: (userData: Omit<User, "id">, password: string) => Promise<{ success: boolean; error?: { message: string; status?: number } }>;
   updateUser: (data: Partial<User>) => Promise<void>;
 }
 
@@ -111,17 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoleState(newRole);
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: { message: string; status?: number } }> => {
     setIsLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setIsLoading(false);
-      return { success: false, error: error.message };
+      return { success: false, error: { message: error.message, status: error.status } };
     }
     return { success: true };
   };
 
-  const signUp = async (userData: Omit<User, "id">, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signUp = async (userData: Omit<User, "id">, password: string): Promise<{ success: boolean; error?: { message: string; status?: number } }> => {
     setIsLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
@@ -134,9 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    console.log("Signup response:", data, error);
+
     if (error) {
       setIsLoading(false);
-      return { success: false, error: error.message };
+      return { success: false, error: { message: error.message, status: error.status } };
     }
 
     if (data.user) {

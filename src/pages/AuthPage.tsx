@@ -41,7 +41,7 @@ export default function AuthPage() {
     const errs: Record<string, string> = {};
     if (authTab === "signup" && !name.trim()) errs.name = t("auth.nameRequired");
     if (!email.trim()) errs.email = t("auth.emailRequired");
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = t("auth.invalidEmail");
+    else if (!/\S+@\S+\.\S+/.test(email.trim())) errs.email = t("auth.invalidEmail");
     if (!password) errs.password = t("auth.passwordRequired");
     else if (password.length < 6) errs.password = t("auth.passwordShort");
     setErrors(errs);
@@ -51,32 +51,61 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    setLoading(true);
-
-    if (authTab === "signin") {
-      const result = await signIn(email, password);
-      if (result.success) {
-        toast.success(t("auth.loginSuccess"));
-      } else {
-        toast.error(t(result.error || "auth.invalidCredentials"));
-      }
-    } else {
-      setRole(roleTab);
-      const result = await signUp({
-        name: name.trim(),
-        email: email.trim(),
-        role: roleTab,
-        industries: [],
-        skills: [],
-      }, password);
-      
-      if (result.success) {
-        toast.success(t("auth.signupSuccess"));
-      } else {
-        toast.error(t(result.error || "auth.emailExists"));
-      }
+    
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      toast.error("Please fill all fields");
+      return;
     }
-    setLoading(false);
+
+    setLoading(true);
+    try {
+      if (authTab === "signin") {
+        console.log("Signing in with:", cleanEmail);
+        const result = await signIn(cleanEmail, password);
+        
+        if (result.error) {
+          if (result.error.status === 429 || result.error.message.includes("rate limit")) {
+            toast.error("Too many attempts. Please try again in a few minutes.");
+          } else {
+            toast.error(result.error.message || t("auth.invalidCredentials"));
+          }
+          return;
+        }
+
+        if (result.success) {
+          toast.success(t("auth.loginSuccess"));
+        }
+      } else {
+        setRole(roleTab);
+        console.log("Signing up with:", cleanEmail);
+        const result = await signUp({
+          name: name.trim(),
+          email: cleanEmail,
+          role: roleTab,
+          industries: [],
+          skills: [],
+        }, password);
+        
+        if (result.error) {
+          if (result.error.status === 429 || result.error.message.includes("rate limit")) {
+            toast.error("Too many attempts. Please try again in a few minutes.");
+          } else {
+            toast.error(result.error.message || t("auth.emailExists"));
+          }
+          return;
+        }
+
+        if (result.success) {
+          toast.success(t("auth.signupSuccess"));
+        }
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const clearErrors = (field: string) => setErrors((p) => ({ ...p, [field]: "" }));
