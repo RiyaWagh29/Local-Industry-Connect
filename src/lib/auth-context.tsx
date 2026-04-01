@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 🔍 Fetch profile
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -36,10 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // Profile doesn't exist yet
-          return null;
-        }
+        if (error.code === 'PGRST116') return null;
         throw error;
       }
       return data;
@@ -49,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // 🔄 Sync user
   const syncUser = useCallback(async (sbUser: SupabaseUser | null) => {
     if (!sbUser) {
       setUser(null);
@@ -58,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const profile = await fetchProfile(sbUser.id);
+
     if (profile) {
       const mappedUser: User = {
         id: sbUser.id,
@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mappedUser);
       setRoleState(mappedUser.role);
     } else {
-      // User exists in Auth but not in Profiles yet
+      // fallback if profile not yet created
       setUser({
         id: sbUser.id,
         email: sbUser.email || '',
@@ -87,18 +87,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: sbUser.user_metadata?.role as Role || null,
       } as User);
     }
+
     setIsLoading(false);
   }, []);
 
   useEffect(() => {
-    // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       syncUser(session?.user ?? null);
       setIsInitialized(true);
     });
 
-    // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       syncUser(session?.user ?? null);
@@ -111,18 +110,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoleState(newRole);
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: { message: string; status?: number } }> => {
+  // 🔐 SIGN IN
+  const signIn = async (email: string, password: string) => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
     if (error) {
       setIsLoading(false);
       return { success: false, error: { message: error.message, status: error.status } };
     }
+
     return { success: true };
   };
 
-  const signUp = async (userData: Omit<User, "id">, password: string): Promise<{ success: boolean; error?: { message: string; status?: number } }> => {
+  // 🆕 SIGN UP (FIXED)
+  const signUp = async (userData: Omit<User, "id">, password: string) => {
     setIsLoading(true);
+
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password,
@@ -142,10 +150,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.user) {
-      // Create profile entry
+      // ✅ FIX: use UPSERT instead of INSERT
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: data.user.id,
           name: userData.name,
           role: userData.role,
@@ -155,14 +163,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           saved_opportunities: []
         });
 
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-      }
+      console.log("PROFILE UPSERT ERROR:", profileError);
     }
 
     return { success: true };
   };
 
+  // 🚪 LOGOUT
   const logout = async () => {
     setIsLoading(true);
     await supabase.auth.signOut();
@@ -171,10 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
+  // 🔄 UPDATE USER (FIXED)
   const updateUser = async (data: Partial<User>) => {
     if (!user) return;
-    
-    // Map application user fields to database table columns
+
     const dbData = {
       name: data.name,
       role: data.role,
@@ -188,31 +195,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saved_opportunities: data.savedOpportunities
     };
 
-    // Remove undefined values
-    Object.keys(dbData).forEach(key => (dbData as any)[key] === undefined && delete (dbData as any)[key]);
+    Object.keys(dbData).forEach(key =>
+      (dbData as any)[key] === undefined && delete (dbData as any)[key]
+    );
 
+    // ✅ FIX: use UPSERT instead of UPDATE
     const { error } = await supabase
       .from('profiles')
-      .update(dbData)
-      .eq('id', user.id);
+      .upsert({
+        id: user.id,
+        ...dbData
+      });
+
+    console.log("PROFILE UPDATE ERROR:", error);
 
     if (error) {
-      console.error('Error updating profile:', error);
       throw error;
     }
 
-    // syncUser will be triggered by profile update if we were listening to profile changes,
-    // but here we can just update local state for speed.
     setUser(prev => prev ? { ...prev, ...data } : null);
   };
 
   const isNewUser = !!user && (!user.industries || user.industries.length === 0);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, role, setRole, logout, 
-      isAuthenticated: !!user, isInitialized, isNewUser, isLoading,
-      signIn, signUp, updateUser 
+    <AuthContext.Provider value={{
+      user, role, setRole, logout,
+      isAuthenticated: !!user,
+      isInitialized,
+      isNewUser,
+      isLoading,
+      signIn,
+      signUp,
+      updateUser
     }}>
       {children}
     </AuthContext.Provider>
