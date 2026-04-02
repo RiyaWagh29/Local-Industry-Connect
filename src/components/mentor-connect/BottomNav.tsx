@@ -1,4 +1,4 @@
-import { Home, Search, Users, Briefcase, User, LayoutDashboard, MessageSquare, PlusCircle, MessagesSquare } from "lucide-react";
+import { Home, Search, Users, Briefcase, User, LayoutDashboard, MessageSquare, PlusCircle, MessagesSquare, LogOut } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
@@ -8,7 +8,8 @@ import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role } = useAuth();
+  const { user, role: contextRole } = useAuth();
+  const role = user?.role || contextRole;
   const { t } = useLanguage();
 
   const studentTabs = [
@@ -55,7 +56,8 @@ export function BottomNav() {
 export function DesktopSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { role } = useAuth();
+  const { user, role: contextRole, logout } = useAuth();
+  const role = user?.role || contextRole;
   const { t } = useLanguage();
 
   const studentTabs = [
@@ -106,7 +108,14 @@ export function DesktopSidebar() {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-4">
+        <button 
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-6 py-2 rounded-xl text-body font-medium text-destructive hover:bg-destructive/10 transition-all"
+        >
+          <LogOut size={20} />
+          <span>{t("logout")}</span>
+        </button>
         <p className="text-caption text-muted-foreground text-center">{t("made.in.nashik")}</p>
       </div>
     </aside>
