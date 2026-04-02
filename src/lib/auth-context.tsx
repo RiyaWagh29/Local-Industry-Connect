@@ -21,7 +21,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<(User & { onboarding_completed?: boolean }) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRoleState] = useState<Role>(null);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let profile = await fetchProfile(sbUser.id);
 
-    // ✅ Auto-create profile if missing
+    // ✅ Auto-create profile
     if (!profile) {
       const { error } = await supabase.from("profiles").insert({
         id: sbUser.id,
@@ -65,15 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboarding_completed: false,
       });
 
-      if (error) {
-        console.error("Profile creation failed:", error);
-      }
+      if (error) console.error("Profile creation failed:", error);
 
       profile = await fetchProfile(sbUser.id);
     }
 
     if (profile) {
-      const mappedUser: User = {
+      const mappedUser = {
         id: sbUser.id,
         email: sbUser.email || "",
         name: profile.name || "",
@@ -84,13 +82,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         company: profile.company,
         experience: profile.experience,
         guidance: profile.guidance,
+        onboarding_completed: profile.onboarding_completed || false, // ✅ FIX
       };
 
       setUser(mappedUser);
       setRoleState(mappedUser.role);
-
-      // 🔥 IMPORTANT: store onboarding flag in memory
-      (mappedUser as any).onboarding_completed = profile.onboarding_completed;
     }
 
     setIsLoading(false);
@@ -133,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (userData: Omit<User, "id">, password: string) => {
     setIsLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: userData.email,
       password,
       options: {
@@ -161,25 +157,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
-  // 🔥 UPDATE USER (Handles Step 2 + Step 3)
+  // 🔥 UPDATE USER (Step 2 + Step 3)
   const updateUser = async (data: Partial<User>) => {
     if (!user?.id) return;
 
     const dbData: any = {
       id: user.id,
-
-      // Step 2
       industries: data.industries || [],
       skills: data.skills || [],
       company: data.company,
       experience: data.experience,
-
-      // Step 3
       guidance: data.guidance,
       goals: data.goals,
-
-      // Mark onboarding done
-      onboarding_completed: true,
+      onboarding_completed: true, // ✅ CRITICAL
     };
 
     Object.keys(dbData).forEach(key => {
@@ -195,13 +185,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw error;
     }
 
-    setUser(prev => (prev ? { ...prev, ...data } : null));
+    // ✅ Update local state properly
+    setUser(prev =>
+      prev
+        ? {
+          ...prev,
+          ...data,
+          onboarding_completed: true,
+        }
+        : null
+    );
   };
 
-  // 🔥 FIXED LOGIC (NO MORE LOOP)
+  // 🔥 FINAL FIX
   const isNewUser =
     !!user &&
-    !(user as any).onboarding_completed;
+    user.role === "mentor" &&
+    !user.onboarding_completed;
 
   return (
     <AuthContext.Provider
