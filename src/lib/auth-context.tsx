@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 🔥 UPDATE USER (FINAL FIX)
   const updateUser = async (data: Partial<User>) => {
-    console.log("🚀 updateUser CALLED");
+    console.log("🚀 updateUser CALLED WITH:", data);
     if (!user?.id) return;
 
     const dbData: any = {
@@ -187,18 +187,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (dbData[key] === undefined) delete dbData[key];
     });
 
-    console.log("SAVING PROFILE:", dbData);
-
+    console.log("🚀 UPSERTING PROFILE WITH DATA:", dbData);
     const { data: updated, error } = await supabase
       .from("profiles")
-      .upsert(dbData)
+      .upsert(dbData, { onConflict: "id" })
       .select()
       .single();
 
     if (error) {
-      console.error("UPDATE ERROR:", error);
+      console.error("❌ PROFILE UPDATE ERROR:", error);
       throw error;
     }
+
+    console.log("✅ PROFILE UPDATED SUCCESSFULLY - RESPONSE:", updated);
 
     // 🔥 update full state from DB response
     setUser(prev =>

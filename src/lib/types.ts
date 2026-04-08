@@ -17,7 +17,6 @@ export interface User {
   company?: string;
   experience?: number;
   guidance?: string;
-  savedOpportunities?: string[];
   followers?: number;
   communities?: number;
   posts?: number;
