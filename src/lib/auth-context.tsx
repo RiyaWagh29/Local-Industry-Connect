@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
-
 import { Role, User } from "./types";
 
 interface AuthContextType {
@@ -27,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔍 Fetch profile (FIXED)
+  // ✅ FIXED: no 406 error
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -40,10 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    return data || null;
+    return data;
   };
 
-  // 🔄 Sync user (STRONG FIX)
+  // 🔄 SYNC USER (STRONG + RELIABLE)
   const syncUser = useCallback(async (sbUser: SupabaseUser | null) => {
     if (!sbUser) {
       setUser(null);
@@ -54,10 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let profile = await fetchProfile(sbUser.id);
 
-    // 🔥 FORCE CREATE PROFILE (RETRY SAFE)
+    // 🔥 AUTO CREATE PROFILE (SAFE)
     if (!profile) {
-      console.log("Creating profile...");
-
       const { data, error } = await supabase
         .from("profiles")
         .upsert({
@@ -68,14 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           industries: [],
           skills: [],
           onboarding_completed: false,
-        })
+        }, { onConflict: "id" })
         .select()
         .single();
 
       if (error) {
         console.error("Profile creation failed:", error);
       } else {
-        console.log("Profile created:", data);
         profile = data;
       }
     }
@@ -167,15 +163,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
-  // 🔥 UPDATE USER (FINAL FIX)
+  // 🔥 FINAL FIX (CRITICAL)
   const updateUser = async (data: Partial<User>) => {
-    console.log("🚀 updateUser CALLED WITH:", data);
     if (!user?.id) return;
 
+    console.log("INPUT DATA:", data);
+
+    // ✅ STRICT FIELD CONTROL
     const dbData: any = {
       id: user.id,
-      industries: data.industries || [],
-      skills: data.skills || [],
+      industries: data.industries,
+      skills: data.skills,
       company: data.company,
       experience: data.experience,
       guidance: data.guidance,
@@ -183,11 +181,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onboarding_completed: true,
     };
 
+    // ❌ remove undefined
     Object.keys(dbData).forEach(key => {
       if (dbData[key] === undefined) delete dbData[key];
     });
 
-    console.log("🚀 UPSERTING PROFILE WITH DATA:", dbData);
+    // 🚨 HARD FILTER (prevents saved_opportunities bug)
+    const allowedFields = [
+      "id",
+      "industries",
+      "skills",
+      "company",
+      "experience",
+      "guidance",
+      "goals",
+      "onboarding_completed",
+    ];
+
+    Object.keys(dbData).forEach(key => {
+      if (!allowedFields.includes(key)) delete dbData[key];
+    });
+
+    console.log("FINAL DB DATA:", dbData);
+
     const { data: updated, error } = await supabase
       .from("profiles")
       .upsert(dbData, { onConflict: "id" })
@@ -195,13 +211,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error) {
-      console.error("❌ PROFILE UPDATE ERROR:", error);
+      console.error("❌ UPDATE ERROR:", error);
       throw error;
     }
 
-    console.log("✅ PROFILE UPDATED SUCCESSFULLY - RESPONSE:", updated);
+    console.log("✅ PROFILE SAVED:", updated);
 
-    // 🔥 update full state from DB response
     setUser(prev =>
       prev
         ? {
