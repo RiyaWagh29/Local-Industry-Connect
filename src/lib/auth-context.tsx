@@ -27,22 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 🔍 Fetch profile
+  // 🔍 Fetch profile (FIXED)
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", userId);
+      .eq("id", userId)
+      .maybeSingle();
 
     if (error) {
       console.error("Fetch error:", error);
       return null;
     }
 
-    return data?.[0] || null;
+    return data || null;
   };
 
-  // 🔄 Sync user
+  // 🔄 Sync user (STRONG FIX)
   const syncUser = useCallback(async (sbUser: SupabaseUser | null) => {
     if (!sbUser) {
       setUser(null);
@@ -53,21 +54,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let profile = await fetchProfile(sbUser.id);
 
-    // ✅ Auto-create profile
+    // 🔥 FORCE CREATE PROFILE (RETRY SAFE)
     if (!profile) {
-      const { error } = await supabase.from("profiles").insert({
-        id: sbUser.id,
-        email: sbUser.email,
-        name: sbUser.user_metadata?.name || "",
-        role: sbUser.user_metadata?.role || "student",
-        industries: [],
-        skills: [],
-        onboarding_completed: false,
-      });
+      console.log("Creating profile...");
 
-      if (error) console.error("Profile creation failed:", error);
+      const { data, error } = await supabase
+        .from("profiles")
+        .upsert({
+          id: sbUser.id,
+          email: sbUser.email,
+          name: sbUser.user_metadata?.name || "",
+          role: sbUser.user_metadata?.role || "student",
+          industries: [],
+          skills: [],
+          onboarding_completed: false,
+        })
+        .select()
+        .single();
 
-      profile = await fetchProfile(sbUser.id);
+      if (error) {
+        console.error("Profile creation failed:", error);
+      } else {
+        console.log("Profile created:", data);
+        profile = data;
+      }
     }
 
     if (profile) {
@@ -82,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         company: profile.company,
         experience: profile.experience,
         guidance: profile.guidance,
-        onboarding_completed: profile.onboarding_completed || false, // ✅ FIX
+        onboarding_completed: profile.onboarding_completed || false,
       };
 
       setUser(mappedUser);
@@ -157,8 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
-  // 🔥 UPDATE USER (Step 2 + Step 3)
+  // 🔥 UPDATE USER (FINAL FIX)
   const updateUser = async (data: Partial<User>) => {
+    console.log("🚀 updateUser CALLED");
     if (!user?.id) return;
 
     const dbData: any = {
@@ -169,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       experience: data.experience,
       guidance: data.guidance,
       goals: data.goals,
-      onboarding_completed: true, // ✅ CRITICAL
+      onboarding_completed: true,
     };
 
     Object.keys(dbData).forEach(key => {
@@ -178,26 +189,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     console.log("SAVING PROFILE:", dbData);
 
-    const { error } = await supabase.from("profiles").upsert(dbData);
+    const { data: updated, error } = await supabase
+      .from("profiles")
+      .upsert(dbData)
+      .select()
+      .single();
 
     if (error) {
       console.error("UPDATE ERROR:", error);
       throw error;
     }
 
-    // ✅ Update local state properly
+    // 🔥 update full state from DB response
     setUser(prev =>
       prev
         ? {
           ...prev,
-          ...data,
-          onboarding_completed: true,
+          ...updated,
         }
         : null
     );
   };
 
-  // 🔥 FINAL FIX
+  // 🔥 FINAL LOGIC
   const isNewUser =
     !!user &&
     user.role === "mentor" &&
