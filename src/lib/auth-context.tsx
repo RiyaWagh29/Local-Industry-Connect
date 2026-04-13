@@ -125,10 +125,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { token, user: newUser } = res.data || {};
 
       if (token && newUser) {
-        localStorage.setItem("token", token);
-        await refreshUser();
-        return { success: true };
-      }
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(newUser)); // 🔥 ADD THIS
+  setUser(newUser); // 🔥 ADD THIS
+  setRoleState(newUser.role); // 🔥 ADD THIS
+  return { success: true };
+}
       return { success: false, error: { message: "Signup failed" } };
     } catch (err: any) {
       return {
@@ -144,7 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.put("/users/profile", data);
       if (res.data?.success) {
-        await refreshUser();
+        setUser(newUser);
+setRoleState(newUser.role);
       }
     } catch (err) {
       console.error("Update user failed:", err);

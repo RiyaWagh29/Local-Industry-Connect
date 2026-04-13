@@ -10,7 +10,7 @@ const generateToken = (id) => {
   }
 
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: '1h',
+    expiresIn: '7d',
     issuer: 'smcp',
     audience: 'smcp-web'
   });
