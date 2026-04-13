@@ -1,23 +1,32 @@
 import { useState } from "react";
-import { Search, Filter, X, Users } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { industries } from "@/lib/constants";
 import { useLanguage } from "@/lib/language-context";
 import { useMentors } from "@/lib/mentors-context";
 import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { MentorCard } from "@/components/mentor-connect/MentorCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
+import { getText } from "@/lib/getText";
 
 export default function ExploreMentors() {
   const [query, setQuery] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState("All");
   const { mentors, isLoading } = useMentors();
-  const { t, getLocalized } = useLanguage();
+  const { t } = useLanguage();
 
-  const filtered = mentors.filter((m) => {
-    const name = getLocalized(m.name).toLowerCase();
-    const company = m.company.toLowerCase();
-    const matchesSearch = name.includes(query.toLowerCase()) || company.includes(query.toLowerCase());
+  const safeMentors = Array.isArray(mentors) ? mentors : [];
+
+  const filtered = safeMentors.filter((m) => {
+    if (!m) return false;
+    
+    // Defensive access to name and company + string safety
+    const name = (getText(m.name) || "").toLowerCase();
+    const company = (m.company || "").toLowerCase();
+    const queryLower = (query || "").toLowerCase();
+    
+    const matchesSearch = name.includes(queryLower) || company.includes(queryLower);
     const matchesIndustry = selectedIndustry === "All" || m.industry === selectedIndustry;
+    
     return matchesSearch && matchesIndustry;
   });
 
@@ -32,12 +41,12 @@ export default function ExploreMentors() {
 
           <div className="flex flex-col md:flex-row gap-4 border-b border-border pb-6">
             <div className="relative flex-1 group">
-              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground focus-within:text-primary transition-colors" />
               <input 
                 value={query} 
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("explore.searchPlaceholder")}
-                className="w-full pl-12 pr-10 py-4 rounded-2xl border border-border bg-card text-foreground text-body focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all shadow-sm" 
+                className="w-full pl-12 pr-10 py-4 rounded-2xl border border-border bg-card text-foreground text-body focus:ring-4 focus:ring-primary/10 transition-all outline-none" 
               />
               {query && (
                 <button 
@@ -55,7 +64,7 @@ export default function ExploreMentors() {
                 selected={selectedIndustry === "All"} 
                 onPress={() => setSelectedIndustry("All")} 
               />
-              {industries.map((ind) => (
+              {(industries || []).map((ind) => (
                 <IndustryChip 
                   key={ind} 
                   label={ind} 
@@ -75,8 +84,8 @@ export default function ExploreMentors() {
           ) : (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {filtered.map((mentor) => (
-                  <MentorCard key={mentor.id} mentor={mentor} />
+                {(filtered || []).map((mentor) => (
+                  <MentorCard key={mentor?.id || Math.random()} mentor={mentor} />
                 ))}
               </div>
 
@@ -89,15 +98,12 @@ export default function ExploreMentors() {
                     <h3 className="text-h3 font-bold text-foreground">
                       {t("explore.noMentors") || "No mentors found"}
                     </h3>
-                    <p className="text-body text-muted-foreground mt-1">
-                      {t("explore.tryDifferentSearch") || "Try adjusting your search or filters to find what you're looking for."}
-                    </p>
                   </div>
                   <button 
                     onClick={() => { setQuery(""); setSelectedIndustry("All"); }}
                     className="text-primary font-bold hover:underline"
                   >
-                    {t("explore.clearFilters") || "Clear all filters"}
+                    Clear all filters
                   </button>
                 </div>
               )}

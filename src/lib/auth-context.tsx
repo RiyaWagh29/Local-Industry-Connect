@@ -1,254 +1,164 @@
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
-import { supabase } from "./supabase";
-import { Session, User as SupabaseUser } from "@supabase/supabase-js";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+  useCallback,
+} from "react";
+import api from "./api";
 import { Role, User } from "./types";
 
 interface AuthContextType {
   user: User | null;
   role: Role;
   setRole: (role: Role) => void;
-  logout: () => Promise<void>;
+  logout: () => void;
   isAuthenticated: boolean;
   isInitialized: boolean;
-  isNewUser: boolean;
   isLoading: boolean;
+  isNewUser: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
-  signUp: (userData: Omit<User, "id">, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
+  signUp: (userData: any, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
   updateUser: (data: Partial<User>) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<(User & { onboarding_completed?: boolean }) | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [role, setRoleState] = useState<Role>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  // ✅ FIXED: no 406 error
-  const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Fetch error:", error);
-      return null;
-    }
-
-    return data;
-  };
-
-  // 🔄 SYNC USER (STRONG + RELIABLE)
-  const syncUser = useCallback(async (sbUser: SupabaseUser | null) => {
-    if (!sbUser) {
-      setUser(null);
-      setRoleState(null);
-      setIsLoading(false);
-      return;
-    }
-
-    let profile = await fetchProfile(sbUser.id);
-
-    // 🔥 AUTO CREATE PROFILE (SAFE)
-    if (!profile) {
-      const { data, error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: sbUser.id,
-          email: sbUser.email,
-          name: sbUser.user_metadata?.name || "",
-          role: sbUser.user_metadata?.role || "student",
-          industries: [],
-          skills: [],
-          onboarding_completed: false,
-        }, { onConflict: "id" })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Profile creation failed:", error);
-      } else {
-        profile = data;
-      }
-    }
-
-    if (profile) {
-      const mappedUser = {
-        id: sbUser.id,
-        email: sbUser.email || "",
-        name: profile.name || "",
-        role: profile.role as Role,
-        industries: profile.industries || [],
-        skills: profile.skills || [],
-        goals: profile.goals,
-        company: profile.company,
-        experience: profile.experience,
-        guidance: profile.guidance,
-        onboarding_completed: profile.onboarding_completed || false,
-      };
-
-      setUser(mappedUser);
-      setRoleState(mappedUser.role);
-    }
-
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      syncUser(session?.user ?? null);
-      setIsInitialized(true);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      syncUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [syncUser]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const setRole = useCallback((newRole: Role) => {
     setRoleState(newRole);
   }, []);
 
-  // 🔐 SIGN IN
-  const signIn = async (email: string, password: string) => {
-    setIsLoading(true);
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      setIsLoading(false);
-      return { success: false, error: { message: error.message } };
-    }
-
-    return { success: true };
-  };
-
-  // 🆕 SIGN UP
-  const signUp = async (userData: Omit<User, "id">, password: string) => {
-    setIsLoading(true);
-
-    const { error } = await supabase.auth.signUp({
-      email: userData.email,
-      password,
-      options: {
-        data: {
-          name: userData.name,
-          role: userData.role,
-        },
-      },
-    });
-
-    if (error) {
-      setIsLoading(false);
-      return { success: false, error: { message: error.message } };
-    }
-
-    return { success: true };
-  };
-
-  // 🚪 LOGOUT
-  const logout = async () => {
-    setIsLoading(true);
-    await supabase.auth.signOut();
+  const logout = useCallback(() => {
+    localStorage.clear();
     setUser(null);
     setRoleState(null);
-    setIsLoading(false);
-  };
+    window.location.href = "/login";
+  }, []);
 
-  // 🔥 FINAL FIX (CRITICAL)
-  const updateUser = async (data: Partial<User>) => {
-    if (!user?.id) return;
-
-    console.log("INPUT DATA:", data);
-
-    // ✅ STRICT FIELD CONTROL
-    const dbData: any = {
-      id: user.id,
-      industries: data.industries,
-      skills: data.skills,
-      company: data.company,
-      experience: data.experience,
-      guidance: data.guidance,
-      goals: data.goals,
-      onboarding_completed: true,
-    };
-
-    // ❌ remove undefined
-    Object.keys(dbData).forEach(key => {
-      if (dbData[key] === undefined) delete dbData[key];
-    });
-
-    // 🚨 HARD FILTER (prevents saved_opportunities bug)
-    const allowedFields = [
-      "id",
-      "industries",
-      "skills",
-      "company",
-      "experience",
-      "guidance",
-      "goals",
-      "onboarding_completed",
-    ];
-
-    Object.keys(dbData).forEach(key => {
-      if (!allowedFields.includes(key)) delete dbData[key];
-    });
-
-    console.log("FINAL DB DATA:", dbData);
-
-    const { data: updated, error } = await supabase
-      .from("profiles")
-      .upsert(dbData, { onConflict: "id" })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("❌ UPDATE ERROR:", error);
-      throw error;
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setUser(null);
+      setRoleState(null);
+      setIsInitialized(true);
+      setIsLoading(false);
+      return;
     }
 
-    console.log("✅ PROFILE SAVED:", updated);
+    try {
+      const res = await api.get("/users/profile");
+      // Pattern: payload = res.data?.data || res.data?.user || []
+      const payload = res.data?.data || res.data?.user;
+      
+      if (payload) {
+        const mappedUser: User = {
+          id: payload._id || payload.id,
+          name: payload.name || "",
+          email: payload.email || "",
+          role: payload.role as Role,
+          avatar: payload.avatar,
+          industries: payload.industries || [],
+          skills: payload.skills || [],
+          goals: payload.goals,
+          company: payload.company,
+          experience: payload.experience,
+          guidance: payload.guidance,
+          onboarding_completed: payload.onboarding_completed ?? false,
+        };
+        setUser(mappedUser);
+        setRoleState(mappedUser.role);
+        localStorage.setItem("user", JSON.stringify(mappedUser));
+      }
+    } catch (err) {
+      console.warn("Profile refresh failed, maintaining local state.");
+      // If profile fails but we have a user in localStorage, keep it
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        setRoleState(parsed.role);
+      }
+    } finally {
+      setIsInitialized(true);
+      setIsLoading(false);
+    }
+  }, []);
 
-    setUser(prev =>
-      prev
-        ? {
-          ...prev,
-          ...updated,
-        }
-        : null
-    );
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
+
+  const signIn = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const res = await api.post("/auth/login", { email, password });
+      const { token, user: loggedUser } = res.data || {};
+
+      if (token && loggedUser) {
+        localStorage.setItem("token", token);
+        await refreshUser();
+        return { success: true };
+      }
+      return { success: false, error: { message: "Invalid response from server" } };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: { message: err?.response?.data?.message || "Login failed" },
+      };
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // 🔥 FINAL LOGIC
-  const isNewUser =
-    !!user &&
-    user.role === "mentor" &&
-    !user.onboarding_completed;
+  const signUp = async (userData: any, password: string) => {
+    setIsLoading(true);
+    try {
+      const res = await api.post("/auth/register", { ...userData, password });
+      const { token, user: newUser } = res.data || {};
+
+      if (token && newUser) {
+        localStorage.setItem("token", token);
+        await refreshUser();
+        return { success: true };
+      }
+      return { success: false, error: { message: "Signup failed" } };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: { message: err?.response?.data?.message || "Signup failed" },
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateUser = async (data: Partial<User>) => {
+    try {
+      const res = await api.put("/users/profile", data);
+      if (res.data?.success) {
+        await refreshUser();
+      }
+    } catch (err) {
+      console.error("Update user failed:", err);
+      throw err;
+    }
+  };
+
+  const isNewUser = !!user && user.onboarding_completed === false;
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        role,
-        setRole,
-        logout,
-        isAuthenticated: !!user,
-        isInitialized,
-        isNewUser,
-        isLoading,
-        signIn,
-        signUp,
-        updateUser,
-      }}
-    >
+    <AuthContext.Provider value={{
+      user, role, setRole, logout, isAuthenticated: !!user,
+      isInitialized, isLoading, isNewUser, signIn, signUp, updateUser, refreshUser
+    }}>
       {children}
     </AuthContext.Provider>
   );

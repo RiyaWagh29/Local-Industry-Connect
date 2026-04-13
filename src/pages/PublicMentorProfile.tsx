@@ -1,25 +1,24 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  ArrowLeft, Share2, Award, Briefcase, GraduationCap, 
-  MessageSquare, Star, Globe, Linkedin, Twitter, 
-  CheckCircle2, ShieldCheck, Heart, Users, ChevronRight, Check, Info, UserPlus
+  ArrowLeft, Award, MessageSquare, Star, 
+  ChevronRight, Check, Info, UserPlus, Calendar
 } from "lucide-react";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { useLanguage } from "@/lib/language-context";
 import { useAuth } from "@/lib/auth-context";
 import { useMessages } from "@/lib/messages-context";
-import { useOpportunities } from "@/lib/opportunities-context";
 import { useMentors } from "@/lib/mentors-context";
 import { Mentor } from "@/lib/types";
 import { toast } from "sonner";
+import { getText } from "@/lib/getText";
+import api from "@/lib/api";
 
 export default function PublicMentorProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t, getLocalized } = useLanguage();
+  const { t } = useLanguage();
   const { startConversation } = useMessages();
-  const { opportunities } = useOpportunities();
   const { getMentorById } = useMentors();
   
   const [mentor, setMentor] = useState<Mentor | null>(null);
@@ -29,80 +28,76 @@ export default function PublicMentorProfile() {
 
   useEffect(() => {
     const fetchMentor = async () => {
-      if (!id) return;
+      if (!id || id === 'undefined') {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
-      const data = await getMentorById(id);
-      setMentor(data);
-      setIsLoading(false);
+      try {
+        const data = await getMentorById(id);
+        setMentor(data);
+      } catch (err) {
+        console.error("Fetch mentor failed", id, err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchMentor();
   }, [id, getMentorById]);
 
-  if (isLoading) return (
-    <ResponsiveLayout>
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    </ResponsiveLayout>
-  );
-
-  if (!mentor) return (
-    <ResponsiveLayout>
-      <div className="min-h-screen flex flex-col items-center justify-center text-muted-foreground gap-4">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <Award size={32} />
+  if (isLoading) {
+    return (
+      <ResponsiveLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-        <p className="font-medium">{t("mentor.profile.notFound") || "Mentor not found"}</p>
-        <button onClick={() => navigate("/student/explore")} className="btn-ghost">
-          {t("nav.explore") || "Back to Explore"}
-        </button>
-      </div>
-    </ResponsiveLayout>
-  );
+      </ResponsiveLayout>
+    );
+  }
 
-  const mentorOpps = opportunities.filter((o) => o.mentorId === mentor.id);
-  const tabs = [
-    { key: "about", label: t("mentor.profile.tabAbout") || "About" },
-    { key: "skills", label: t("mentor.profile.tabSkills") || "Skills" },
-    { key: "opportunities", label: t("mentor.profile.tabOpportunities") || "Opportunities" },
-    { key: "reviews", label: t("mentor.profile.tabReviews") || "Reviews" },
-  ];
+  if (!mentor || !mentor.id) {
+    return (
+      <ResponsiveLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center text-muted-foreground gap-4">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+            <Award size={32} />
+          </div>
+          <p className="font-medium">Mentor not found</p>
+          <button onClick={() => navigate("/student/explore")} className="btn-ghost">
+            Back to Explore
+          </button>
+        </div>
+      </ResponsiveLayout>
+    );
+  }
 
-  const handleFollow = () => {
-    setFollowing(!following);
-    toast.success(following ? t("mentor.profile.unfollowed") || "Unfollowed" : t("mentor.profile.followedSuccess") || "Followed successfully!");
-  };
-
-  const handleJoinCommunity = () => {
-    toast.success(t("mentor.profile.joinedCommunity", { name: getLocalized(mentor.name) }));
-    navigate("/student/communities");
-  };
+  const name = getText(mentor.name);
+  const role = getText(mentor.role);
+  const bio = getText(mentor.bio);
+  const guidance = getText(mentor.guidance);
+  const industry = mentor.industry || "General";
 
   const handleMessage = async () => {
+    if (!mentor?.id) return;
     await startConversation({ 
       id: mentor.id, 
-      name: getLocalized(mentor.name), 
+      name: getText(mentor.name), 
       avatar: mentor.avatar,
       role: 'mentor'
     });
     navigate(`/messages/${mentor.id}`);
   };
 
-  const name = getLocalized(mentor.name);
-  const role = getLocalized(mentor.role);
-  const bio = getLocalized(mentor.bio);
-  const guidance = getLocalized(mentor.guidance);
-
   return (
     <ResponsiveLayout>
       <div className="min-h-screen bg-background pb-20 lg:pb-8 animate-fade-in">
         {/* Cover Image */}
         <div className="relative h-48 md:h-64 lg:h-72 w-full overflow-hidden">
-          <img src={mentor.coverImage} alt="" className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
+          <img src={mentor.coverImage || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=300&fit=crop'} alt="" className="w-full h-full object-cover transition-transform duration-700 hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <button 
             onClick={() => navigate(-1)} 
-            className="absolute top-6 left-6 w-10 h-10 rounded-xl bg-card/90 backdrop-blur shadow-lg flex items-center justify-center text-foreground hover:bg-primary hover:text-primary-foreground transition-all active:scale-95"
+            className="absolute top-6 left-6 w-10 h-10 rounded-xl bg-card/90 backdrop-blur shadow-lg flex items-center justify-center text-foreground hover:bg-primary transition-all"
           >
             <ArrowLeft size={20} />
           </button>
@@ -119,7 +114,7 @@ export default function PublicMentorProfile() {
                     alt={name} 
                     className="w-32 h-32 rounded-3xl border-4 border-card object-cover shadow-xl" 
                   />
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 border-4 border-card rounded-full shadow-lg" />
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 border-4 border-card rounded-full" />
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -127,51 +122,54 @@ export default function PublicMentorProfile() {
                     <Award size={24} className="text-primary" />
                   </div>
                   <p className="text-body font-medium text-muted-foreground">{role}</p>
-                  <p className="text-caption font-bold text-primary uppercase tracking-widest">{mentor.company}</p>
+                  <p className="text-caption font-bold text-primary uppercase tracking-widest">{mentor.company || "Independent"}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">
                 <button 
                   onClick={handleMessage}
-                  className="btn-outline border-transparent bg-mentor/10 text-mentor hover:bg-mentor hover:text-white"
-                  title="Send Message"
+                  className="btn-outline border-transparent bg-mentor/10 text-mentor hover:bg-mentor"
                 >
                   <MessageSquare size={22} />
                 </button>
                 <button 
-                  onClick={handleJoinCommunity}
-                  className="btn-primary"
+                  onClick={() => setActiveTab("meetings")}
+                  className="btn-outline border-transparent bg-primary/10 text-primary hover:bg-primary"
                 >
-                  <Users size={20} />
-                  {t("mentor.profile.joinCommunity") || "Join Community"}
+                  <Calendar size={20} />
+                  Book Meeting
                 </button>
               </div>
             </div>
 
             <div className="flex gap-10 mt-10 pt-8 border-t border-border/50">
               <div className="text-center group cursor-default">
-                <span className="block text-h2 text-foreground font-bold group-hover:text-primary transition-colors">{mentor.followers}</span>
-                <p className="text-v-small font-bold text-muted-foreground uppercase tracking-wider">Followers</p>
+                <span className="block text-h2 text-foreground font-bold">{mentor.followers || 0}</span>
+                <p className="text-v-small font-bold text-muted-foreground uppercase">Followers</p>
               </div>
               <div className="text-center group cursor-default">
-                <span className="block text-h2 text-foreground font-bold group-hover:text-primary transition-colors">{mentor.communities}</span>
-                <p className="text-v-small font-bold text-muted-foreground uppercase tracking-wider">Communities</p>
+                <span className="block text-h2 text-foreground font-bold">{mentor.communities || 0}</span>
+                <p className="text-v-small font-bold text-muted-foreground uppercase">Communities</p>
               </div>
               <div className="text-center group cursor-default">
-                <span className="block text-h2 text-foreground font-bold group-hover:text-primary transition-colors">{mentor.posts}</span>
-                <p className="text-v-small font-bold text-muted-foreground uppercase tracking-wider">Posts</p>
+                <span className="block text-h2 text-foreground font-bold">{mentor.posts || 0}</span>
+                <p className="text-v-small font-bold text-muted-foreground uppercase">Posts</p>
               </div>
             </div>
 
             <div className="flex gap-2 mt-10 px-1 border-b border-border/50 overflow-x-auto scrollbar-hide">
-              {tabs.map((tab) => (
+              {[
+                { key: "about", label: t("mentor.profile.tabAbout") || "About" },
+                { key: "skills", label: t("mentor.profile.tabSkills") || "Skills" },
+                { key: "meetings", label: "Meetings" },
+              ].map((tab) => (
                 <button 
                   key={tab.key} 
                   onClick={() => setActiveTab(tab.key)}
-                  className={`relative px-6 py-3 text-body font-bold transition-all whitespace-nowrap rounded-t-xl ${
+                  className={`relative px-6 py-3 text-body font-bold transition-all whitespace-nowrap ${
                     activeTab === tab.key 
-                      ? "text-primary bg-primary/5 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-primary" 
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-primary" 
+                      : "text-muted-foreground"
                   }`}
                 >
                   {tab.label}
@@ -184,30 +182,30 @@ export default function PublicMentorProfile() {
                 <div className="space-y-8 animate-fade-in">
                   <div className="space-y-4">
                     <h3 className="text-h3 font-bold text-foreground flex items-center gap-2">
-                       <Info size={20} className="text-primary" /> {t("mentor.profile.tabAbout") || "Biography"}
+                       <Info size={20} /> Biography
                     </h3>
                     <p className="text-body text-foreground leading-relaxed bg-muted/30 p-5 rounded-2xl italic">
-                      "{bio}"
+                      "{bio || "Expert professional mentor."}"
                     </p>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
-                      <span className="text-caption font-bold text-muted-foreground uppercase tracking-widest">{t("mentor.profile.experience") || "Experience"}</span>
-                      <p className="text-h3 text-foreground font-bold mt-1">{mentor.experience} {t("mentor.profile.years") || "Years"}</p>
+                    <div className="bg-card border border-border p-5 rounded-2xl">
+                      <span className="text-caption font-bold text-muted-foreground uppercase">Experience</span>
+                      <p className="text-h3 text-foreground font-bold mt-1">{mentor.experience || 0} Years</p>
                     </div>
-                    <div className="bg-card border border-border p-5 rounded-2xl shadow-sm">
-                      <span className="text-caption font-bold text-muted-foreground uppercase tracking-widest">{t("mentor.profile.industry") || "Industry"}</span>
-                      <p className="text-h3 text-foreground font-bold mt-1">{mentor.industry}</p>
+                    <div className="bg-card border border-border p-5 rounded-2xl">
+                      <span className="text-caption font-bold text-muted-foreground uppercase">Industry</span>
+                      <p className="text-h3 text-foreground font-bold mt-1">{industry}</p>
                     </div>
                   </div>
 
                   <div className="space-y-4 pt-4">
                     <h3 className="text-h3 font-bold text-foreground flex items-center gap-2">
-                       <Star size={20} className="text-primary" /> {t("mentor.profile.guidance") || "Guidance Area"}
+                       <Star size={20} /> Guidance
                     </h3>
                     <p className="text-body text-foreground leading-relaxed bg-primary/5 p-5 rounded-2xl border border-primary/10">
-                      {guidance}
+                      {guidance || "Available for career guidance and technical mentorship."}
                     </p>
                   </div>
                 </div>
@@ -215,8 +213,8 @@ export default function PublicMentorProfile() {
 
               {activeTab === "skills" && (
                 <div className="flex flex-wrap gap-3 animate-fade-in">
-                  {mentor.skills.map((s) => (
-                    <div key={s} className="px-5 py-2.5 rounded-2xl bg-card border border-border text-body font-bold text-foreground shadow-sm hover:border-primary/50 transition-colors flex items-center gap-2">
+                  {(mentor.skills || []).map((s: string) => (
+                    <div key={s} className="px-5 py-2.5 rounded-2xl bg-card border border-border text-body font-bold text-foreground shadow-sm flex items-center gap-2">
                       <Check size={16} className="text-primary" />
                       {s}
                     </div>
@@ -224,62 +222,61 @@ export default function PublicMentorProfile() {
                 </div>
               )}
 
-              {activeTab === "opportunities" && (
+              {activeTab === "meetings" && (
                 <div className="space-y-6 animate-fade-in">
-                  {mentorOpps.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {mentorOpps.map((o) => (
-                        <div key={o.id} className="group p-5 bg-card rounded-2xl border border-border hover:border-primary/30 hover:shadow-lg transition-all cursor-pointer">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                              <Briefcase size={20} />
-                            </div>
-                            <h4 className="font-bold text-body text-foreground group-hover:text-primary transition-colors">{getLocalized(o.title)}</h4>
-                          </div>
-                          <p className="text-caption text-muted-foreground font-medium mb-3">{o.company} · {getLocalized(o.location)}</p>
-                          <div className="flex items-center justify-between">
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-extrabold uppercase tracking-widest leading-none">
-                              {o.type}
-                            </span>
-                            <span className="text-caption font-bold text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                              {t("view") || "View"} <ChevronRight size={14} />
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
-                      <Briefcase size={40} className="mb-2" />
-                      <p className="text-body font-bold">{t("mentor.profile.noOpportunities") || "No current opportunities"}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "reviews" && (
-                <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 animate-fade-in opacity-60">
-                  <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
-                    <Star size={40} className="text-muted-foreground" />
-                  </div>
-                  <h3 className="text-body font-bold text-foreground">
-                    {t("mentor.profile.noReviews") || "No reviews yet"}
-                  </h3>
+                   <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10 space-y-4">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                            <Calendar size={20} />
+                         </div>
+                         <div>
+                            <h4 className="font-bold text-body">Request a Meeting</h4>
+                            <p className="text-caption text-muted-foreground">Select a time to connect with {name}.</p>
+                         </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <input type="datetime-local" className="bg-card border border-border p-3 rounded-xl text-sm" id="meeting-time" />
+                        <button 
+                          onClick={async () => {
+                            const timeInput = document.getElementById('meeting-time') as HTMLInputElement;
+                            if (!timeInput?.value) return toast.error("Please select a time");
+                            try {
+                              const res = await api.post('/meetings', {
+                                mentor_id: mentor.id,
+                                date_time: timeInput.value
+                              });
+                              if (res.data?.success) {
+                                toast.success("Meeting requested! Wait for mentor to approve.");
+                                timeInput.value = "";
+                              } else {
+                                toast.error(res.data?.message || "Failed to schedule");
+                              }
+                            } catch (e) { toast.error("Schedule failed"); }
+                          }}
+                          className="bg-primary text-primary-foreground font-bold p-3 rounded-xl hover:scale-105 transition-all"
+                        >
+                          Confirm Request
+                        </button>
+                      </div>
+                   </div>
                 </div>
               )}
             </div>
           </div>
 
           <button 
-            onClick={handleFollow}
+            onClick={() => {
+              setFollowing(!following);
+              toast.success(following ? "Unfollowed" : "Followed successfully!");
+            }}
             className={`w-full mt-8 py-5 rounded-3xl text-body font-extrabold flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] ${
               following 
-                ? "bg-muted text-foreground border border-border shadow-none" 
+                ? "bg-muted text-foreground" 
                 : "bg-white text-primary border-4 border-primary hover:bg-primary hover:text-white"
             }`}
           >
             <UserPlus size={22} />
-            {following ? t("mentor.profile.following") || "Following" : t("mentor.profile.follow") || "Follow Mentor"}
+            {following ? "Following" : "Follow Mentor"}
           </button>
         </div>
       </div>

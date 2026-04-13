@@ -3,32 +3,32 @@ import { Search, Bell, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useMentors } from "@/lib/mentors-context";
-import { useOpportunities } from "@/lib/opportunities-context";
-import { Community, Opportunity, Mentor } from "@/lib/types";
+import { Users, User } from "lucide-react";
 import { communities, industries } from "@/lib/constants";
 import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { MentorCard } from "@/components/mentor-connect/MentorCard";
 import { CommunityCard } from "@/components/mentor-connect/CommunityCard";
-import { OpportunityCard } from "@/components/mentor-connect/OpportunityCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getText } from "@/lib/getText";
 
 export default function StudentHome() {
   const { user } = useAuth();
   const { mentors, isLoading: mentorsLoading } = useMentors();
-  const { opportunities, isLoading: oppsLoading } = useOpportunities();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [selectedIndustry, setSelectedIndustry] = useState("All");
 
-  const filteredMentors = (selectedIndustry === "All"
-    ? mentors.slice(0, 6)
-    : mentors.filter((m) => m.industry === selectedIndustry).slice(0, 6));
+  const safeMentors = Array.isArray(mentors) ? mentors : [];
+  const safeCommunities = Array.isArray(communities) ? communities : [];
 
-  const recentOpps = opportunities.slice(0, 3);
+  const filteredMentors =
+    selectedIndustry === "All"
+      ? safeMentors.slice(0, 6)
+      : safeMentors.filter((m) => m?.industry === selectedIndustry).slice(0, 6);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -36,6 +36,8 @@ export default function StudentHome() {
     if (hour < 18) return t("home.greeting.afternoon") || "Good Afternoon";
     return t("home.greeting.evening") || "Good Evening";
   };
+
+  const userName = getText(user?.name) || "Student";
 
   return (
     <ResponsiveLayout>
@@ -48,13 +50,13 @@ export default function StudentHome() {
               <LanguageToggle />
               <button 
                 onClick={() => navigate("/student/explore")} 
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
+                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary/10 transition-all"
               >
                 <Search size={18} />
               </button>
               <button 
                 onClick={() => toast.info(t("home.notifications") || "No new notifications")} 
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all relative"
+                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary/10 transition-all relative"
               >
                 <Bell size={18} />
                 <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-destructive border-2 border-card" />
@@ -69,7 +71,7 @@ export default function StudentHome() {
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <h1 className="text-h1 text-foreground flex items-center gap-3">
-                  {greeting()}, {user?.name?.split(" ")[0] || "Student"}! <Sparkles className="text-yellow-500 animate-pulse" size={24} />
+                  {greeting()}, {userName}! <Sparkles className="text-yellow-500 animate-pulse" size={24} />
                 </h1>
                 <p className="text-body text-muted-foreground mt-2 max-w-md">
                   {t("home.subtitle") || "Welcome back! Here's what's happening in your Nashik network today."}
@@ -77,24 +79,21 @@ export default function StudentHome() {
               </div>
               <button 
                 onClick={() => navigate("/student/explore")}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-all w-fit"
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg hover:scale-105 transition-all w-fit"
               >
-                {t("explore.title")} <ArrowRight size={18} />
+                {t("explore.title") || "Explore Mentors"} <ArrowRight size={18} />
               </button>
             </div>
-            {/* Background blobs */}
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-mentor/10 rounded-full blur-3xl" />
           </div>
 
           {/* Industry Filters */}
           <div className="flex items-center gap-2 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
             <IndustryChip 
-              label={t("home.allMentors")} 
+              label={t("home.allMentors") || "All"} 
               selected={selectedIndustry === "All"} 
               onPress={() => setSelectedIndustry("All")} 
             />
-            {industries.map((ind) => (
+            {(industries || []).map((ind) => (
               <IndustryChip 
                 key={ind} 
                 label={ind} 
@@ -108,7 +107,7 @@ export default function StudentHome() {
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-h2 text-foreground font-bold">
-                {t("home.mentorsSection", { industry: selectedIndustry === "All" ? t("home.allMentors") : selectedIndustry })}
+                {selectedIndustry === "All" ? t("home.mentorsSection") || "Recommended Mentors" : `${t("home.mentorsSection") || "Mentors in"} ${selectedIndustry}`}
               </h2>
               <button 
                 onClick={() => navigate("/student/explore")}
@@ -117,16 +116,22 @@ export default function StudentHome() {
                 {t("seeAll") || "See All"} <ArrowRight size={14} />
               </button>
             </div>
+            
             {mentorsLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {[...Array(4)].map((_, i) => <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />)}
               </div>
-            ) : (
+            ) : (filteredMentors || []).length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filteredMentors.map((mentor) => (
-                  <MentorCard key={mentor.id} mentor={mentor} />
+                  <MentorCard key={mentor?.id || Math.random()} mentor={mentor} />
                 ))}
               </div>
+            ) : (
+                <div className="w-full py-12 border border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-3 bg-muted/20">
+                    <Users size={32} className="text-muted-foreground opacity-20" />
+                    <p className="text-muted-foreground">No mentors found</p>
+                </div>
             )}
           </section>
 
@@ -134,43 +139,74 @@ export default function StudentHome() {
             {/* Communities */}
             <section className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-h3 text-foreground font-bold">{t("home.communitiesSection")}</h2>
+                <h2 className="text-h3 text-foreground font-bold">{t("home.communitiesSection") || "Communities"}</h2>
+                {safeCommunities.length > 0 && (
+                  <button 
+                    onClick={() => navigate("/student/communities")}
+                    className="text-primary font-bold hover:underline"
+                  >
+                    {t("seeAll") || "See All"}
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {safeCommunities.length > 0 ? (
+                  safeCommunities.slice(0, 3).map((c) => (
+                    <CommunityCard key={c.id} community={c} />
+                  ))
+                ) : (
+                  <div className="p-8 border border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center bg-muted/20">
+                    <p className="text-muted-foreground font-medium">No communities yet</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Leaderboard Section */}
+            <section className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-h3 text-foreground font-bold">{t("home.leaderboardSection") || "Leaderboard"}</h2>
                 <button 
-                  onClick={() => navigate("/student/communities")}
-                  className="text-caption font-bold text-primary hover:underline flex items-center gap-1"
+                  onClick={() => navigate("/student/leaderboard")}
+                  className="text-primary font-bold hover:underline"
                 >
                   {t("seeAll") || "See All"}
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-4">
-                {communities.slice(0, 3).map((c) => (
-                  <CommunityCard key={c.id} community={c} />
-                ))}
+                {mentorsLoading ? (
+                  <div className="h-64 rounded-2xl bg-muted animate-pulse" />
+                ) : safeMentors.length > 0 ? (
+                  <div className="bg-card border border-border rounded-3xl overflow-hidden divide-y divide-border/50 shadow-sm">
+                    {safeMentors.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0)).slice(0, 3).map((mentor, index) => (
+                      <div 
+                        key={mentor.id || index} 
+                        className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors cursor-pointer" 
+                        onClick={() => mentor.id && navigate(`/mentor/profile/${mentor.id}`)}
+                      >
+                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 text-sm">
+                           {index + 1}
+                         </div>
+                         <div className="w-10 h-10 rounded-full bg-muted overflow-hidden shrink-0">
+                           <img src={mentor.avatar} alt={getText(mentor.name)} className="w-full h-full object-cover" />
+                         </div>
+                         <div className="flex-1 min-w-0">
+                           <p className="font-bold text-body truncate">{getText(mentor.name)}</p>
+                           <p className="text-caption text-muted-foreground truncate">{getText(mentor.role)}</p>
+                         </div>
+                         <div className="flex items-center gap-1 font-bold text-primary shrink-0">
+                           <span className="text-sm">★</span>
+                           <span>{mentor.averageRating?.toFixed(1) || "5.0"}</span>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 border border-dashed border-border rounded-2xl flex flex-col items-center justify-center text-center bg-muted/20">
+                    <p className="text-muted-foreground font-medium">Rankings arriving soon</p>
+                  </div>
+                )}
               </div>
-            </section>
-
-            {/* Opportunities */}
-            <section className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-h3 text-foreground font-bold">{t("home.opportunitiesSection")}</h2>
-                <button 
-                  onClick={() => navigate("/student/opportunities")}
-                  className="text-caption font-bold text-primary hover:underline flex items-center gap-1"
-                >
-                  {t("seeAll") || "See All"}
-                </button>
-              </div>
-              {oppsLoading ? (
-                <div className="space-y-4">
-                  {[...Array(2)].map((_, i) => <div key={i} className="h-40 rounded-2xl bg-muted animate-pulse" />)}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4">
-                  {recentOpps.map((o) => (
-                    <OpportunityCard key={o.id} opportunity={o} />
-                  ))}
-                </div>
-              )}
             </section>
           </div>
         </div>

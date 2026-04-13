@@ -94,7 +94,7 @@ export default function StudentProfile() {
           <div className="bg-card rounded-2xl shadow-card border border-border overflow-hidden">
             {[
               { label: t("student.profile.editProfile"), path: "/profile/edit" },
-              { label: t("student.profile.savedOpportunities"), path: "/profile/saved" },
+              { label: t("nav.meetings"), path: "/student/meetings" },
               { label: t("student.profile.settings"), path: "/profile/settings" },
             ].map((item) => (
               <button 

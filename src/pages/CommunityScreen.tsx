@@ -30,7 +30,7 @@ export default function CommunityScreen() {
 
   const tabs = [
     { key: "chat", label: t("community.tabChat") || "Chat" },
-    { key: "opportunities", label: t("community.tabOpportunities") || "Opportunities" },
+    { key: "meetings", label: t("nav.meetings") || "Meetings" },
     { key: "members", label: t("community.tabMembers") || "Members" },
     { key: "resources", label: t("community.tabResources") || "Resources" },
   ];
@@ -123,17 +123,17 @@ export default function CommunityScreen() {
           <div className="flex-1 p-4 md:p-6">
             {activeTab === "chat" && <ChatSection />}
             
-            {activeTab === "opportunities" && (
+            {activeTab === "meetings" && (
               <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 animate-fade-in">
                 <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center shadow-inner">
-                  <Users size={40} className="text-muted-foreground opacity-20" />
+                  <Award size={40} className="text-muted-foreground opacity-20" />
                 </div>
                 <div>
                   <h3 className="text-h3 font-bold text-foreground">
-                    {t("community.noOpportunities") || "No internal opportunities currently"}
+                    Mentorship Meetings
                   </h3>
                   <p className="text-body text-muted-foreground max-w-sm mx-auto mt-1">
-                    {t("community.noOpportunitiesDesc") || "Mentors post exclusive internships and jobs here. Check back soon!"}
+                    Book 1:1 sessions or group calls directly with your community mentor. Feature coming soon!
                   </p>
                 </div>
               </div>

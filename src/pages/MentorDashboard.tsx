@@ -2,36 +2,51 @@ import { Bell, Settings, Plus, Share2, MessageSquare, Users, TrendingUp, Award, 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import { useOpportunities } from "@/lib/opportunities-context";
 import { StatCard } from "@/components/mentor-connect/StatCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { Calendar } from "lucide-react";
 
 export default function MentorDashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { opportunities } = useOpportunities();
   const navigate = useNavigate();
   const [showShareForm, setShowShareForm] = useState(false);
+  const [meetingsCount, setMeetingsCount] = useState(0);
 
-  const mentorOppsCount = opportunities.filter(o => o.mentorId === user?.id).length;
+  useEffect(() => {
+    // Fetch meetings count
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`http://localhost:5000/api/meetings/mentor/${user?.id}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setMeetingsCount(data.data.filter((m: any) => m.status === 'pending').length);
+        }
+      } catch (e) { console.error(e); }
+    };
+    if (user?.id) fetchStats();
+  }, [user?.id]);
 
   const stats = [
     { label: t("mentor.dashboard.totalFollowers") || "Total Followers", value: user?.followers?.toLocaleString() || "1,240", icon: Users, variant: "mentor" },
     { label: t("mentor.dashboard.communityMembers") || "Community Members", value: user?.communities?.toLocaleString() || "450", icon: Award, variant: "mentor" },
-    { label: t("mentor.dashboard.opportunitiesPosted") || "Opps Posted", value: mentorOppsCount.toString(), icon: Briefcase, variant: "primary" },
+    { label: t("nav.meetings") || "Upcoming Meetings", value: meetingsCount.toString(), icon: Calendar, variant: "primary" },
     { label: t("mentor.dashboard.weeklyReach") || "Weekly Reach", value: "3.2K", icon: TrendingUp, variant: "default" },
   ];
 
   const quickActions = [
     { 
-      label: t("mentor.dashboard.postOpportunity") || "Post Opportunity", 
+      label: "Start Community", 
       icon: Plus, 
-      action: () => navigate("/mentor/post"),
+      action: () => navigate("/mentor/community"),
       color: "bg-primary/10 text-primary hover:bg-primary hover:text-white"
     },
     { 
@@ -82,7 +97,7 @@ export default function MentorDashboard() {
                 {t("mentor.dashboard.title", { name: user?.name?.split(" ")[0] || "Mentor" })} 👋
               </h1>
               <p className="text-body text-muted-foreground mt-2 max-w-lg">
-                {t("mentor.dashboard.subtitle") || "Manage your community, post growth opportunities, and track your impact in Nashik."}
+                {t("mentor.dashboard.subtitle") || "Manage your community, conduct mentorship meetings, and track your impact in Nashik."}
               </p>
             </div>
             {/* Background decorative elements */}

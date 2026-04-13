@@ -1,7 +1,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/language-context";
-import { GraduationCap, LogOut, Settings, ChevronRight, Edit, Camera, Briefcase, Users, LayoutDashboard, Globe, ShieldCheck, LogIn, Award } from "lucide-react";
+import { GraduationCap, LogOut, Settings, ChevronRight, Edit, Camera, Calendar, Users, LayoutDashboard, Globe, ShieldCheck, LogIn, Award } from "lucide-react";
 import { SkillTag } from "@/components/mentor-connect/SkillTag";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
@@ -47,7 +47,7 @@ export default function MentorProfile() {
   }
 
   const menuItems = [
-    { label: t("mentor.dashboard.postOpportunity") || "Manage My Opportunities", icon: Briefcase, action: () => navigate("/mentor/post") },
+    { label: t("nav.meetings") || "Manage Meetings", icon: Calendar, action: () => navigate("/mentor/meetings") },
     { label: t("mentor.dashboard.startDiscussion") || "Community Hub", icon: Users, action: () => navigate("/mentor/community") },
     { label: t("nav.dashboard") || "View Dashboard", icon: LayoutDashboard, action: () => navigate("/mentor/dashboard") },
     { label: t("profile.settings") || "Settings", icon: Settings, action: () => navigate("/profile/settings") },

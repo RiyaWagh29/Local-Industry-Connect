@@ -13,36 +13,7 @@ interface Member {
   role?: string;
 }
 
-const initialMembers: Member[] = [
-  { 
-    id: "1", 
-    name: { en: "Sumit Gaikwad", mr: "सुमित गायकवाड" }, 
-    avatar: "https://images.unsplash.com/photo-1599566150163-29194dcabd9c?w=150&h=150&fit=crop&crop=face", 
-    joined: { en: "January 2026", mr: "जानेवारी २०२६" },
-    role: "Student"
-  },
-  { 
-    id: "2", 
-    name: { en: "Sneha Kadam", mr: "स्नेहा कदम" }, 
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop&crop=face", 
-    joined: { en: "February 2026", mr: "फेब्रुवारी २०२६" },
-    role: "Student"
-  },
-  { 
-    id: "3", 
-    name: { en: "Abhishek More", mr: "अभिषेक मोरे" }, 
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&h=150&fit=crop&crop=face", 
-    joined: { en: "March 2026", mr: "मार्च २०२६" },
-    role: "Student"
-  },
-  { 
-    id: "4", 
-    name: { en: "Pooja Pawar", mr: "पूजा पवार" }, 
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face", 
-    joined: { en: "March 2026", mr: "मार्च २०२६" },
-    role: "Student"
-  },
-];
+const initialMembers: Member[] = [];
 
 export default function MentorMembers() {
   const { t, getLocalized } = useLanguage();

@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
-import { supabase } from "./supabase";
-import { Mentor } from "./types";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import api from "./api";
+import { useAuth } from "./auth-context";
+import { Mentor, LocalizedString } from "./types";
 
 interface MentorsContextType {
   mentors: Mentor[];
@@ -14,63 +15,83 @@ const MentorsContext = createContext<MentorsContextType | undefined>(undefined);
 export function MentorsProvider({ children }: { children: ReactNode }) {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, isInitialized } = useAuth();
 
-  const mapProfileToMentor = (m: any): Mentor => ({
-    id: m.id,
-    name: typeof m.name === 'string' ? { en: m.name, mr: m.name } : m.name,
-    role: typeof m.role === 'string' ? { en: m.role, mr: m.role } : m.role,
-    company: m.company || 'Professional',
-    industry: m.industries?.[0] || 'Software',
-    avatar: m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name || 'Mentor')}&background=random`,
-    bio: typeof m.bio === 'string' ? { en: m.bio, mr: m.bio } : (m.bio || { en: '', mr: '' }),
-    skills: m.skills || [],
-    followers: m.followers || 0,
-    communities: m.communities || 0,
-    posts: m.posts || 0,
-    experience: m.experience || 0,
-    guidance: typeof m.guidance === 'string' ? { en: m.guidance, mr: m.guidance } : (m.guidance || { en: '', mr: '' }),
-    coverImage: m.cover_image || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=300&fit=crop',
-  });
+  const mapProfileToMentor = useCallback((m: any): Mentor => {
+    const ensureLoc = (val: any): LocalizedString => {
+      if (typeof val === 'string') return { en: val, mr: val };
+      if (val && typeof val === 'object' && val.en) return val;
+      return { en: "", mr: "" };
+    };
+
+    return {
+      id: m._id || m.id,
+      name: ensureLoc(m.name),
+      role: ensureLoc(m.role),
+      company: m.company || "Nashik Industry",
+      industry: (Array.isArray(m.industries) ? m.industries[0] : m.industry) || "Software",
+      avatar: m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(getTextManual(m.name) || 'Mentor')}&background=random`,
+      bio: ensureLoc(m.bio || m.guidance),
+      skills: Array.isArray(m.skills) ? m.skills : [],
+      followers: m.followers || 0,
+      communities: m.communities || 0,
+      posts: m.posts || 0,
+      experience: m.experience || 0,
+      guidance: ensureLoc(m.guidance),
+      coverImage: m.coverImage || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&h=300&fit=crop',
+    };
+  }, []);
+
+  // Inline helper to avoid circular dependency with getText utility if any, 
+  // but we prefer centralized getText. For mapping logic, we use its logic.
+  const getTextManual = (value: any): string => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") return value.en || "";
+    return "";
+  };
 
   const fetchMentors = useCallback(async () => {
+    if (!isAuthenticated) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'mentor');
-
-      if (error) throw error;
-      setMentors(data.map(mapProfileToMentor));
-    } catch (error) {
-      console.error('Error fetching mentors:', error);
+      const res = await api.get("/users/mentors");
+      // Pattern: payload = res.data?.data || res.data?.user || []
+      const payload = res.data?.data || res.data?.user || [];
+      
+      if (Array.isArray(payload)) {
+        setMentors(payload.map(mapProfileToMentor));
+      } else {
+        setMentors([]);
+      }
+    } catch (err) {
+      console.warn("Mentors fetch failed", err);
+      setMentors([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated, mapProfileToMentor]);
 
   const getMentorById = async (id: string): Promise<Mentor | null> => {
-    // Check local state first
-    const local = mentors.find(m => m.id === id);
-    if (local) return local;
+    if (!id || id === 'undefined') return null;
+    const existing = mentors.find(m => m.id === id);
+    if (existing) return existing;
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) return null;
-      return mapProfileToMentor(data);
-    } catch (error) {
+      const res = await api.get(`/users/profile/${id}`);
+      const payload = res.data?.data || res.data?.user;
+      return payload ? mapProfileToMentor(payload) : null;
+    } catch (err) {
       return null;
     }
   };
 
   useEffect(() => {
-    fetchMentors();
-  }, [fetchMentors]);
+    if (isInitialized) {
+      if (isAuthenticated) fetchMentors();
+      else { setMentors([]); setIsLoading(false); }
+    }
+  }, [isInitialized, isAuthenticated, fetchMentors]);
 
   return (
     <MentorsContext.Provider value={{ mentors, isLoading, fetchMentors, getMentorById }}>
@@ -81,8 +102,6 @@ export function MentorsProvider({ children }: { children: ReactNode }) {
 
 export function useMentors() {
   const context = useContext(MentorsContext);
-  if (context === undefined) {
-    throw new Error("useMentors must be used within a MentorsProvider");
-  }
+  if (!context) throw new Error("useMentors must be used within MentorsProvider");
   return context;
 }

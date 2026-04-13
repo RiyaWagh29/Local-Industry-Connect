@@ -1,4 +1,4 @@
-export type Role = "student" | "mentor" | null;
+export type Role = "student" | "mentor" | "admin" | null;
 
 export interface LocalizedString {
   en: string;
@@ -20,6 +20,7 @@ export interface User {
   followers?: number;
   communities?: number;
   posts?: number;
+  onboarding_completed?: boolean;
 }
 
 export interface Mentor {
@@ -120,4 +121,20 @@ export interface ChatMessage {
   text: LocalizedString;
   timestamp: string;
   time: LocalizedString;
+}
+
+export interface Session {
+  _id: string;
+  student: string | any;
+  mentor: string | any;
+  start: string;
+  end: string;
+  status: "pending" | "confirmed" | "completed" | "cancelled";
+  meetingLink?: string;
+  notes?: string;
+  cancelledBy?: {
+    user: string;
+    role: string;
+  };
+  createdAt: string;
 }

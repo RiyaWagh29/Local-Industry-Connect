@@ -7,29 +7,32 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { LanguageProvider } from "@/lib/language-context";
 import { MessagesProvider } from "@/lib/messages-context";
 import { ResourcesProvider } from "@/lib/resources-context";
-import { OpportunitiesProvider } from "@/lib/opportunities-context";
 import { MentorsProvider } from "@/lib/mentors-context";
+import { SessionsProvider } from "@/lib/sessions-context";
 
 import SplashScreen from "./pages/SplashScreen";
 import AuthPage from "./pages/AuthPage";
+import { getHomeRoute } from "./lib/navigation";
 import StudentOnboarding from "./pages/StudentOnboarding";
 import MentorOnboarding from "./pages/MentorOnboarding";
 import StudentHome from "./pages/StudentHome";
 import ExploreMentors from "./pages/ExploreMentors";
 import CommunityScreen from "./pages/CommunityScreen";
-import OpportunitiesFeed from "./pages/OpportunitiesFeed";
 import StudentCommunities from "./pages/StudentCommunities";
+import Leaderboard from "./pages/Leaderboard";
+import StudentMeetings from "./pages/StudentMeetings";
+import MentorMeetings from "./pages/MentorMeetings";
 import StudentProfile from "./pages/StudentProfile";
 import EditProfile from "./pages/EditProfile";
-import SavedOpportunities from "./pages/SavedOpportunities";
 import SettingsPage from "./pages/SettingsPage";
 import PersonalMessages from "./pages/PersonalMessages";
 import MentorDashboard from "./pages/MentorDashboard";
 import MentorCommunityManagement from "./pages/MentorCommunityManagement";
-import PostOpportunity from "./pages/PostOpportunity";
 import MentorMembers from "./pages/MentorMembers";
 import MentorProfile from "./pages/MentorProfile";
 import PublicMentorProfile from "./pages/PublicMentorProfile";
+import AdminDashboard from "./pages/AdminDashboard";
+import SessionsPage from "./pages/SessionsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,16 +42,26 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?
   const { isAuthenticated, user, isInitialized, isLoading } = useAuth();
   
   if (!isInitialized || isLoading) return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (roles && user && !roles.includes(user.role as string)) return <Navigate to="/" replace />;
+  
+  console.log("Auth check:", user);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user && roles && !roles.includes(user.role as string)) {
+    const homePath = getHomeRoute(user.role as any);
+    console.log(`Unauthorized access attempt. Redirecting ${user.role} to ${homePath}`);
+    return <Navigate to={homePath} replace />;
+  }
   
   return <>{children}</>;
 };
 
 const AppRoutes = () => {
-  const { isInitialized, isLoading } = useAuth();
+  const { isInitialized } = useAuth();
 
-  if (!isInitialized || isLoading) {
+  if (!isInitialized) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
   }
 
@@ -60,15 +73,16 @@ const AppRoutes = () => {
       <Route path="/onboarding/mentor" element={<ProtectedRoute roles={["mentor"]}><MentorOnboarding /></ProtectedRoute>} />
       
       {/* Student Routes */}
-      <Route path="/student/home" element={<ProtectedRoute roles={["student"]}><StudentHome /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute roles={["student"]}><StudentHome /></ProtectedRoute>} />
+      <Route path="/student/home" element={<Navigate to="/dashboard" replace />} />
       <Route path="/student/explore" element={<ProtectedRoute roles={["student"]}><ExploreMentors /></ProtectedRoute>} />
+      <Route path="/student/leaderboard" element={<ProtectedRoute roles={["student"]}><Leaderboard /></ProtectedRoute>} />
       <Route path="/student/communities" element={<ProtectedRoute roles={["student"]}><StudentCommunities /></ProtectedRoute>} />
-      <Route path="/student/opportunities" element={<ProtectedRoute roles={["student"]}><OpportunitiesFeed /></ProtectedRoute>} />
+      <Route path="/student/meetings" element={<ProtectedRoute roles={["student"]}><StudentMeetings /></ProtectedRoute>} />
       <Route path="/student/profile" element={<ProtectedRoute roles={["student"]}><StudentProfile /></ProtectedRoute>} />
       
       {/* Profile Sub-pages */}
       <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-      <Route path="/profile/saved" element={<ProtectedRoute><SavedOpportunities /></ProtectedRoute>} />
       <Route path="/profile/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
       {/* Messaging */}
@@ -77,14 +91,19 @@ const AppRoutes = () => {
       
       {/* Shared */}
       <Route path="/community/:id" element={<ProtectedRoute><CommunityScreen /></ProtectedRoute>} />
+      <Route path="/sessions" element={<ProtectedRoute><SessionsPage /></ProtectedRoute>} />
       
       {/* Mentor Routes */}
       <Route path="/mentor/dashboard" element={<ProtectedRoute roles={["mentor"]}><MentorDashboard /></ProtectedRoute>} />
       <Route path="/mentor/community" element={<ProtectedRoute roles={["mentor"]}><MentorCommunityManagement /></ProtectedRoute>} />
-      <Route path="/mentor/post" element={<ProtectedRoute roles={["mentor"]}><PostOpportunity /></ProtectedRoute>} />
+      <Route path="/mentor/meetings" element={<ProtectedRoute roles={["mentor"]}><MentorMeetings /></ProtectedRoute>} />
       <Route path="/mentor/members" element={<ProtectedRoute roles={["mentor"]}><MentorMembers /></ProtectedRoute>} />
       <Route path="/mentor/profile" element={<ProtectedRoute roles={["mentor"]}><MentorProfile /></ProtectedRoute>} />
       <Route path="/mentor/profile/:id" element={<ProtectedRoute><PublicMentorProfile /></ProtectedRoute>} />
+      
+      {/* Admin Routes */}
+      <Route path="/admin/dashboard" element={<ProtectedRoute roles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -96,8 +115,8 @@ const App = () => (
       <LanguageProvider>
         <AuthProvider>
           <MentorsProvider>
-            <OpportunitiesProvider>
-              <MessagesProvider>
+            <MessagesProvider>
+              <SessionsProvider>
                 <ResourcesProvider>
                   <Toaster />
                   <Sonner position="top-center" />
@@ -105,8 +124,8 @@ const App = () => (
                     <AppRoutes />
                   </BrowserRouter>
                 </ResourcesProvider>
-              </MessagesProvider>
-            </OpportunitiesProvider>
+              </SessionsProvider>
+            </MessagesProvider>
           </MentorsProvider>
         </AuthProvider>
       </LanguageProvider>

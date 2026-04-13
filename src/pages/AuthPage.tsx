@@ -4,20 +4,21 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
-import { GraduationCap, Building2, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { GraduationCap, Building2, Eye, EyeOff, ArrowLeft, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
+import { getHomeRoute } from "@/lib/navigation";
 
 type AuthTab = "signin" | "signup";
-type RoleTab = "student" | "mentor";
+type RoleTab = "student" | "mentor" | "admin";
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, setRole, isAuthenticated, user } = useAuth();
+  const { signIn, signUp, setRole, role: contextRole, isAuthenticated, user } = useAuth();
   const { t } = useLanguage();
 
   const [authTab, setAuthTab] = useState<AuthTab>((searchParams.get("mode") as AuthTab) || "signin");
-  const [roleTab, setRoleTab] = useState<RoleTab>("student");
+  const [roleTab, setRoleTab] = useState<RoleTab>((contextRole as RoleTab) || "student");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,14 +29,13 @@ export default function AuthPage() {
   // If already authenticated, redirect to appropriate home
   useEffect(() => {
     if (isAuthenticated && user) {
-      const isNew = !user.industries || user.industries.length === 0;
-      if (isNew) {
-        navigate(user.role === "mentor" ? "/onboarding/mentor" : "/onboarding/student");
+      if (user.role !== "admin" && !user.onboarding_completed) {
+        navigate(`/onboarding/${user.role}`);
       } else {
-        navigate(user.role === "mentor" ? "/mentor/dashboard" : "/student/home");
+        navigate(getHomeRoute(user.role));
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user]);
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -51,7 +51,7 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    
+
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !password) {
       toast.error("Please fill all fields");
@@ -63,7 +63,7 @@ export default function AuthPage() {
       if (authTab === "signin") {
         console.log("Signing in with:", cleanEmail);
         const result = await signIn(cleanEmail, password);
-        
+
         if (result.error) {
           if (result.error.status === 429 || result.error.message.includes("rate limit")) {
             toast.error("Too many attempts. Please try again in a few minutes.");
@@ -86,7 +86,7 @@ export default function AuthPage() {
           industries: [],
           skills: [],
         }, password);
-        
+
         if (result.error) {
           if (result.error.status === 429 || result.error.message.includes("rate limit")) {
             toast.error("Too many attempts. Please try again in a few minutes.");
@@ -130,11 +130,10 @@ export default function AuthPage() {
             <button
               key={tab}
               onClick={() => { setAuthTab(tab); setErrors({}); }}
-              className={`flex-1 py-2.5 rounded-lg text-body font-medium transition-all ${
-                authTab === tab
-                   ? "bg-card shadow-sm text-foreground"
-                   : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`flex-1 py-2.5 rounded-lg text-body font-medium transition-all ${authTab === tab
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               {tab === "signin" ? t("signIn") : t("signUp")}
             </button>
@@ -157,11 +156,10 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => setRoleTab("student")}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                  roleTab === "student"
-                     ? "border-primary bg-primary/5"
-                     : "border-border hover:border-muted-foreground"
-                }`}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${roleTab === "student"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground"
+                  }`}
               >
                 <GraduationCap size={24} className={roleTab === "student" ? "text-primary" : "text-muted-foreground"} />
                 <span className={`text-caption font-medium ${roleTab === "student" ? "text-primary" : "text-muted-foreground"}`}>
@@ -171,15 +169,27 @@ export default function AuthPage() {
               <button
                 type="button"
                 onClick={() => setRoleTab("mentor")}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                  roleTab === "mentor"
-                     ? "border-mentor bg-mentor/5"
-                     : "border-border hover:border-muted-foreground"
-                }`}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${roleTab === "mentor"
+                    ? "border-mentor bg-mentor/5"
+                    : "border-border hover:border-muted-foreground"
+                  }`}
               >
                 <Building2 size={24} className={roleTab === "mentor" ? "text-mentor" : "text-muted-foreground"} />
                 <span className={`text-caption font-medium ${roleTab === "mentor" ? "text-mentor" : "text-muted-foreground"}`}>
                   {t("auth.roleMentor")}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleTab("admin")}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all col-span-2 ${roleTab === "admin"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground"
+                  }`}
+              >
+                <LayoutDashboard size={24} className={roleTab === "admin" ? "text-primary" : "text-muted-foreground"} />
+                <span className={`text-caption font-medium ${roleTab === "admin" ? "text-primary" : "text-muted-foreground"}`}>
+                  Admin
                 </span>
               </button>
             </div>
@@ -239,8 +249,8 @@ export default function AuthPage() {
               className="btn-primary w-full"
             >
               {loading
-                 ? t(authTab === "signin" ? "auth.signingIn" : "auth.creatingAccount")
-                 : t(authTab === "signin" ? "signIn" : "signUp")}
+                ? t(authTab === "signin" ? "auth.signingIn" : "auth.creatingAccount")
+                : t(authTab === "signin" ? "signIn" : "signUp")}
             </button>
           </form>
 

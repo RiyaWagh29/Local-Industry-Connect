@@ -3,6 +3,7 @@ import { useNavigate, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { Logo } from "@/components/mentor-connect/Logo";
+import { Calendar } from "lucide-react";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 
 export function BottomNav() {
@@ -12,22 +13,29 @@ export function BottomNav() {
   const { t } = useLanguage();
 
   const studentTabs = [
-    { path: "/student/home", icon: Home, label: t("nav.home") },
+    { path: "/dashboard", icon: Home, label: t("nav.home") },
     { path: "/student/explore", icon: Search, label: t("nav.explore") },
     { path: "/student/communities", icon: Users, label: t("nav.communities") },
+    { path: "/student/leaderboard", icon: Briefcase, label: t("nav.leaderboard") }, // Swapping briefcase from jobs to leaderboard
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
-    { path: "/student/profile", icon: User, label: t("nav.profile") },
   ];
 
   const mentorTabs = [
     { path: "/mentor/dashboard", icon: LayoutDashboard, label: t("nav.dashboard") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
-    { path: "/mentor/post", icon: PlusCircle, label: t("nav.post") },
+    { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
   ];
 
-  const tabs = role === "mentor" ? mentorTabs : studentTabs;
+  const adminTabs = [
+    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Admin" },
+    { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
+  ];
+
+  let tabs = studentTabs;
+  if (role === "mentor") tabs = mentorTabs;
+  if (role === "admin") tabs = adminTabs;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 lg:hidden">
@@ -60,10 +68,10 @@ export function DesktopSidebar() {
   const { t } = useLanguage();
 
   const studentTabs = [
-    { path: "/student/home", icon: Home, label: t("nav.home") },
+    { path: "/dashboard", icon: Home, label: t("nav.home") },
     { path: "/student/explore", icon: Search, label: t("nav.explore") },
     { path: "/student/communities", icon: Users, label: t("nav.communities") },
-    { path: "/student/opportunities", icon: Briefcase, label: t("nav.jobs") },
+    { path: "/student/leaderboard", icon: Briefcase, label: t("nav.leaderboard") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/student/profile", icon: User, label: t("nav.profile") },
   ];
@@ -71,13 +79,20 @@ export function DesktopSidebar() {
   const mentorTabs = [
     { path: "/mentor/dashboard", icon: LayoutDashboard, label: t("nav.dashboard") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
-    { path: "/mentor/post", icon: PlusCircle, label: t("nav.post") },
+    { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
     { path: "/mentor/members", icon: Users, label: t("nav.members") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
   ];
 
-  const tabs = role === "mentor" ? mentorTabs : studentTabs;
+  const adminTabs = [
+    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Admin Dashboard" },
+    { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
+  ];
+
+  let tabs = studentTabs;
+  if (role === "mentor") tabs = mentorTabs;
+  if (role === "admin") tabs = adminTabs;
 
   return (
     <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col z-50">

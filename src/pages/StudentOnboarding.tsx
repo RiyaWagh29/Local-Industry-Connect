@@ -70,7 +70,8 @@ export default function StudentOnboarding() {
       await updateUser({ 
         industries: selectedIndustries, 
         skills, 
-        goals 
+        goals,
+        onboarding_completed: true
       });
       toast.success(t("studentOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎉`);
       navigate("/student/home");

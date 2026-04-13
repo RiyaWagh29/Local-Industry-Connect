@@ -75,7 +75,8 @@ export default function MentorOnboarding() {
         skills, 
         company, 
         experience, 
-        guidance 
+        guidance,
+        onboarding_completed: true
       });
       toast.success(t("mentorOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎓`);
       navigate("/mentor/dashboard");
