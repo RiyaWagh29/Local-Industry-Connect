@@ -30,6 +30,15 @@ import ratingRoutes from './routes/ratingRoutes.js';
 import SchedulerService from './services/SchedulerService.js';
 
 const app = express();
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", // local frontend
+      "https://localindustryconnect.vercel.app", // deployed frontend
+    ],
+    credentials: true,
+  })
+);
 app.disable('x-powered-by');
 
 // Connect to MongoDB
@@ -41,7 +50,6 @@ SchedulerService.start();
 // Middleware Core
 app.use(helmet());
 app.use(express.json());
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'], credentials: true }));
 
 // Trace Middleware
 app.use((req, res, next) => {
