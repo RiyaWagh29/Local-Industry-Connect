@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Calendar, ShieldCheck, RefreshCw, Ban, UserCheck, History, XCircle, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
-const API_BASE = "http://localhost:5000/api/admin";
+const API_BASE = "https://local-industry-connect.onrender.com/api/admin";
 
 export default function AdminDashboard() {
   const [userState, setUserState] = useState({ data: [], page: 1, totalPages: 1 });

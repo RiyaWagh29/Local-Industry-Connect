@@ -17,7 +17,7 @@ export default function MentorMeetings() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/meetings/mentor/${user?.id}`, {
+      const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/mentor/${user?.id}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       const data = await res.json();
@@ -39,7 +39,7 @@ export default function MentorMeetings() {
   const handleStatusUpdate = async (meetingId: string, status: string) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/meetings/${meetingId}`, {
+      const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/${meetingId}`, {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",

@@ -18,7 +18,7 @@ export default function StudentMeetings() {
       setIsLoading(true);
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`http://localhost:5000/api/meetings/student/${user?.id}`, {
+        const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/student/${user?.id}`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         const data = await res.json();

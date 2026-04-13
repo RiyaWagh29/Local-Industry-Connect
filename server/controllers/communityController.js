@@ -12,6 +12,8 @@ export const createCommunity = async (req, res) => {
       mentor_id: req.user._id,
       members: [req.user._id],
     });
+    console.log("Creating community:", req.body);
+    console.log("User:", req.user);
     res.status(201).json({ success: true, data: community });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -15,7 +15,7 @@ export default function Leaderboard() {
     const fetchLeaderboard = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('http://localhost:5000/api/users/leaderboard');
+        const res = await fetch('https://local-industry-connect.onrender.com/api/users/leaderboard');
         const data = await res.json();
         if (data.success) {
           setMentors(data.data);

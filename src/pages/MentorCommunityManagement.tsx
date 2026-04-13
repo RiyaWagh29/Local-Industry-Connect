@@ -4,7 +4,7 @@ import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
-import { Settings, Users, Upload, Plus, ShieldCheck, Award, Calendar } from "lucide-react";
+import { Settings, Users, Upload, Plus, ShieldCheck, Award, Calendar, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
@@ -28,14 +28,14 @@ export default function MentorCommunityManagement() {
         const headers = { "Authorization": `Bearer ${token}` };
         
         // Fetch community
-        const commRes = await fetch(`http://localhost:5000/api/communities/mentor/${user?.id}`, { headers });
+        const commRes = await fetch(`https://local-industry-connect.onrender.com/api/communities/mentor/${user?.id}`, { headers });
         const commData = await commRes.json();
         if (commData.success && commData.data?.[0]) {
           setCommunity(commData.data[0]);
         }
 
         // Fetch meetings
-        const meetRes = await fetch(`http://localhost:5000/api/meetings/mentor/${user?.id}`, { headers });
+        const meetRes = await fetch(`https://local-industry-connect.onrender.com/api/meetings/mentor/${user?.id}`, { headers });
         const meetData = await meetRes.json();
         if (meetData.success) {
           setMeetings(meetData.data);
@@ -52,7 +52,7 @@ export default function MentorCommunityManagement() {
     if (!newComm.name || !newComm.description) return toast.error("Please fill all fields");
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch('http://localhost:5000/api/communities', {
+      const res = await fetch('https://local-industry-connect.onrender.com/api/communities', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
