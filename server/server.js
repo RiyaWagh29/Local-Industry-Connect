@@ -94,6 +94,14 @@ app.get('/api/test', (req, res) => {
   res.status(200).end();
 });
 
+app.get("/api/ping", (req, res) => {
+  res.status(200).json({ message: "pong" });
+});
+
+app.head("/api/ping", (req, res) => {
+  res.status(200).end();
+});
+
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
