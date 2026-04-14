@@ -87,8 +87,11 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Test Route
-app.get('/api/test', (req, res) => {
+app.get("/api/test", (req, res) => {
   res.json({ message: "Server running" });
+});
+app.get('/api/test', (req, res) => {
+  res.status(200).end();
 });
 
 // Mount Routes
