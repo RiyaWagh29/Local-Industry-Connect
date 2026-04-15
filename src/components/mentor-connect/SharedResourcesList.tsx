@@ -72,11 +72,57 @@ export function SharedResourcesList({ communityId, refreshToken }: SharedResourc
 
   const list = communityId ? localResources : resources;
 
+  const getResourceUrl = (url: string) => {
+    if (!url || url === "#") return "";
+    if (/^https?:\/\//i.test(url)) return url;
+
+    const baseURL = String(api.defaults.baseURL || "");
+    if (/^https?:\/\//i.test(baseURL)) {
+      return new URL(url, `${baseURL.replace(/\/api\/?$/, "")}/`).toString();
+    }
+
+    return url;
+  };
+
   const openResource = (resource: SharedResource) => {
     const title = getLocalized(resource.title);
     toast.success(`${title} ${t("resource.share.download") || "opening"}...`);
-    if (resource.url && resource.url !== "#") {
-      window.open(resource.url, "_blank", "noopener,noreferrer");
+    const resolvedUrl = getResourceUrl(resource.url);
+    if (resolvedUrl) {
+      window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const downloadResource = async (resource: SharedResource) => {
+    const resolvedUrl = getResourceUrl(resource.url);
+    if (!resolvedUrl) {
+      toast.error("Resource link is unavailable");
+      return;
+    }
+
+    try {
+      const response = await fetch(resolvedUrl, { mode: "cors" });
+      if (!response.ok) {
+        throw new Error(`Download failed with status ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const safeTitle = getLocalized(resource.title).trim() || "resource";
+      const extension = resource.type === "pdf" ? "pdf" : resource.type === "document" ? "doc" : "";
+
+      anchor.href = blobUrl;
+      anchor.download = extension ? `${safeTitle}.${extension}` : safeTitle;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success(`${safeTitle} ${t("resource.share.download") || "downloaded"}...`);
+    } catch (error) {
+      console.error("Download resource failed", error);
+      toast.error("Failed to download resource");
+      openResource(resource);
     }
   };
 
@@ -84,6 +130,11 @@ export function SharedResourcesList({ communityId, refreshToken }: SharedResourc
     if (!isResourceAccessUnlocked) {
       setPendingResource(resource);
       setShowQR(true);
+      return;
+    }
+
+    if (resource.type === "pdf" || resource.type === "document") {
+      void downloadResource(resource);
       return;
     }
 

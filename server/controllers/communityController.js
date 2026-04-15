@@ -38,7 +38,9 @@ export const getMentorCommunities = async (req, res) => {
 // @access  Private
 export const getAllCommunities = async (req, res) => {
   try {
-    const communities = await Community.find({}).populate('mentor_id', 'name avatar');
+    const communities = await Community.find({})
+      .populate('mentor_id', 'name avatar')
+      .populate('members', 'name avatar role createdAt');
     res.json({ success: true, data: communities });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

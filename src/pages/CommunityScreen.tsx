@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Shield, Award, Info, Share2 } from "lucide-react";
+import { ArrowLeft, Users, Shield, Award, Info, Share2, Calendar, Search, X } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
@@ -29,6 +29,7 @@ export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState("chat");
   const [joined, setJoined] = useState(false);
   const [members, setMembers] = useState<MemberPreview[]>([]);
+  const [memberQuery, setMemberQuery] = useState("");
 
   useEffect(() => {
     const fetchCommunity = async () => {
@@ -92,6 +93,10 @@ export default function CommunityScreen() {
     setJoined(isCommunityJoined(id));
   }, [id]);
 
+  const filteredMembers = members.filter((member) =>
+    member.name.toLowerCase().includes(memberQuery.trim().toLowerCase())
+  );
+
   if (!community && !isLoading) return (
     <div className="min-h-screen flex flex-col items-center justify-center text-muted-foreground gap-4">
       <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
@@ -128,6 +133,7 @@ export default function CommunityScreen() {
       joinCommunity(community.id);
       setJoined(true);
       setActiveTab("chat");
+      setMemberQuery("");
       setCommunity((prev) => prev ? ({ ...prev, members: prev.members + 1 }) : prev);
       toast.success(t("community.joined") || "Joined community");
       if (user) {
@@ -152,6 +158,7 @@ export default function CommunityScreen() {
         joinCommunity(community.id);
         setJoined(true);
         setActiveTab("chat");
+        setMemberQuery("");
         return;
       }
       toast.error(message || "Failed to join community");
@@ -274,36 +281,83 @@ export default function CommunityScreen() {
             
             {activeTab === "members" && (
               joined ? (
-                members.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
-                    {members.map((m) => (
-                      <div key={m.id} className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4 shadow-sm">
-                        <img src={m.avatar} alt={m.name} className="w-12 h-12 rounded-xl object-cover border border-border" />
-                        <div className="flex-1">
-                          <p className="font-bold text-body text-foreground">{m.name}</p>
-                          <p className="text-caption text-muted-foreground">{m.role}</p>
-                        </div>
-                        {m.joinedAt && (
-                          <span className="text-[11px] text-muted-foreground">{m.joinedAt}</span>
-                        )}
+                <div className="space-y-4 animate-fade-in">
+                  <div className="relative group">
+                    <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <input
+                      value={memberQuery}
+                      onChange={(e) => setMemberQuery(e.target.value)}
+                      placeholder={t("members.searchPlaceholder") || "Search members by name..."}
+                      className="w-full pl-12 pr-10 py-4 rounded-2xl border border-border bg-card text-foreground text-body focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all shadow-sm"
+                    />
+                    {memberQuery && (
+                      <button
+                        onClick={() => setMemberQuery("")}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted text-muted-foreground"
+                        type="button"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  {filteredMembers.length > 0 ? (
+                    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                      <div className="grid grid-cols-12 gap-3 px-4 py-3 bg-muted/40 text-caption font-bold text-muted-foreground uppercase tracking-widest">
+                        <div className="col-span-7 md:col-span-6">{t("members.name") || "Name"}</div>
+                        <div className="col-span-3 md:col-span-3">{t("members.role") || "Role"}</div>
+                        <div className="col-span-2 md:col-span-3">{t("members.joined") || "Joined"}</div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 animate-fade-in">
-                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center shadow-inner">
-                      <Users size={40} className="text-muted-foreground opacity-20" />
+                      <div className="divide-y divide-border">
+                        {filteredMembers.map((m) => (
+                          <div key={m.id} className="grid grid-cols-12 gap-3 px-4 py-3 items-center">
+                            <div className="col-span-7 md:col-span-6 flex items-center gap-3 min-w-0">
+                              <img src={m.avatar} alt={m.name} className="w-10 h-10 rounded-xl object-cover border border-border" />
+                              <div className="min-w-0">
+                                <div className="font-bold text-body text-foreground truncate">{m.name}</div>
+                                <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                  <Shield size={12} className="text-primary/40" />
+                                  {t("community.member") || "Member"}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="col-span-3 md:col-span-3 text-caption text-muted-foreground">
+                              {m.role}
+                            </div>
+                            <div className="col-span-2 md:col-span-3 text-caption text-muted-foreground flex items-center gap-1.5">
+                              <Calendar size={14} className="text-primary/70 shrink-0" />
+                              <span className="truncate">{m.joinedAt || "-"}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-h3 font-bold text-foreground">
-                        {t("community.memberListSoon") || "No members yet"}
-                      </h3>
-                      <p className="text-body text-muted-foreground max-w-sm mx-auto mt-1">
-                        {t("community.memberListSoonDesc") || "Be the first to say hello in the chat."}
+                  ) : members.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 animate-fade-in">
+                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center shadow-inner">
+                        <Users size={40} className="text-muted-foreground opacity-20" />
+                      </div>
+                      <div>
+                        <h3 className="text-h3 font-bold text-foreground">
+                          {t("community.memberListSoon") || "No members yet"}
+                        </h3>
+                        <p className="text-body text-muted-foreground max-w-sm mx-auto mt-1">
+                          {t("community.memberListSoonDesc") || "Be the first to say hello in the chat."}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 opacity-60">
+                      <Users size={48} className="text-muted-foreground/30" />
+                      <p className="text-body font-bold text-muted-foreground">
+                        {t("members.noMatch") || "No members matched your search"}
                       </p>
+                      <button onClick={() => setMemberQuery("")} className="text-primary font-bold hover:underline">
+                        Clear Search
+                      </button>
                     </div>
-                  </div>
-                )
+                  )}
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 animate-fade-in">
                   <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center shadow-inner">
