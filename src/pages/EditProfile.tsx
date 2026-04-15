@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import { ArrowLeft, User, Mail, Target, Save } from "lucide-react";
+import { ArrowLeft, User, Mail, Target, Save, Camera } from "lucide-react";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { toast } from "sonner";
+import { getAvatarUrl } from "@/lib/avatar";
 
 export default function EditProfile() {
   const navigate = useNavigate();
@@ -14,6 +15,8 @@ export default function EditProfile() {
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [goals, setGoals] = useState(user?.goals || "");
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -25,7 +28,15 @@ export default function EditProfile() {
 
     setLoading(true);
     try {
-      await updateUser({ name, email, goals });
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("goals", goals);
+      if (selectedAvatar) {
+        formData.append("avatar", selectedAvatar);
+      }
+
+      await updateUser(formData);
       toast.success(t("student.profile.editSuccess"));
       navigate(-1);
     } catch (error) {
@@ -53,6 +64,28 @@ export default function EditProfile() {
         <div className="max-w-3xl mx-auto px-4 py-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="bg-card rounded-2xl border border-border shadow-card p-6 space-y-5">
+              <div className="flex items-center gap-4">
+                <img
+                  src={avatarPreview || getAvatarUrl(name || user?.name, user?.avatar)}
+                  alt={name || user?.name || "Profile"}
+                  className="w-20 h-20 rounded-2xl object-cover border border-border"
+                />
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-background text-foreground cursor-pointer hover:bg-muted transition-colors">
+                  <Camera size={16} />
+                  <span>{t("student.profile.editPhoto") || "Change Photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedAvatar(file);
+                      setAvatarPreview(file ? URL.createObjectURL(file) : null);
+                    }}
+                  />
+                </label>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-caption font-semibold text-muted-foreground flex items-center gap-2">
                   <User size={14} /> {t("fullName")}

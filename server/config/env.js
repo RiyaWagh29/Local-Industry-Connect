@@ -7,6 +7,10 @@ export const config = {
   db: process.env.MONGO_URI,
   jwt: process.env.JWT_SECRET || 'fallback_secret',
   nodeEnv: process.env.NODE_ENV || 'development',
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  resourceBucket: process.env.SUPABASE_RESOURCE_BUCKET || 'resources',
+  avatarBucket: process.env.SUPABASE_AVATAR_BUCKET || 'avatars',
   corsOrigins: (process.env.CORS_ORIGIN || '')
     .split(',')
     .map((origin) => origin.trim())

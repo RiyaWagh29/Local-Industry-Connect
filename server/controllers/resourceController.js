@@ -1,4 +1,6 @@
 import Resource from '../models/Resource.js';
+import { config } from '../config/env.js';
+import { uploadBufferToSupabase } from '../services/storageService.js';
 
 // @desc    Get all resources
 // @route   GET /api/resources
@@ -34,9 +36,14 @@ export const shareResource = async (req, res) => {
     const { type, url, tags, communityId } = req.body;
     const title = parseLocalized(req.body.title);
     const description = parseLocalized(req.body.description);
-    const uploadedFileUrl = req.file
-      ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+    const uploadedFile = req.file
+      ? await uploadBufferToSupabase({
+          bucket: config.resourceBucket,
+          file: req.file,
+          folder: 'resources',
+        })
       : null;
+    const uploadedFileUrl = uploadedFile?.publicUrl || null;
     const resourceUrl = uploadedFileUrl || url;
 
     if (!resourceUrl) {
@@ -48,6 +55,7 @@ export const shareResource = async (req, res) => {
       description,
       type,
       url: resourceUrl,
+      storagePath: uploadedFile?.path || '',
       tags,
       sharedBy: req.user._id,
       community_id: communityId || null,

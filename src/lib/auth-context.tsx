@@ -20,7 +20,7 @@ interface AuthContextType {
   isNewUser: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
   signUp: (userData: any, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
-  updateUser: (data: Partial<User>) => Promise<void>;
+  updateUser: (data: Partial<User> | FormData) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -159,9 +159,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateUser = async (data: Partial<User>) => {
+  const updateUser = async (data: Partial<User> | FormData) => {
     try {
-      const res = await api.put("/users/profile", data);
+      const res = data instanceof FormData
+        ? await api.put("/users/profile", data, {
+            headers: { "Content-Type": "multipart/form-data" },
+          })
+        : await api.put("/users/profile", data);
       const payload = res.data?.data || res.data?.user;
       
       if (payload) {

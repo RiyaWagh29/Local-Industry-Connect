@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import AuditLog from '../models/AuditLog.js';
 import Community from '../models/Community.js';
 import MetricsService from '../services/MetricsService.js';
+import { config } from '../config/env.js';
+import { uploadBufferToSupabase } from '../services/storageService.js';
 
 // @desc    Get logged in user profile
 export const getUserProfile = async (req, res) => {
@@ -65,6 +67,14 @@ export const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
+      const uploadedAvatar = req.file
+        ? await uploadBufferToSupabase({
+            bucket: config.avatarBucket,
+            file: req.file,
+            folder: 'avatars',
+          })
+        : null;
+
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
       user.bio = req.body.bio !== undefined ? req.body.bio : user.bio;
@@ -72,6 +82,7 @@ export const updateUserProfile = async (req, res) => {
       user.experience = req.body.experience !== undefined ? req.body.experience : user.experience;
       user.guidance = req.body.guidance !== undefined ? req.body.guidance : user.guidance;
       user.goals = req.body.goals !== undefined ? req.body.goals : user.goals;
+      user.avatar = uploadedAvatar?.publicUrl || req.body.avatar || user.avatar;
       user.onboarding_completed = req.body.onboarding_completed ?? user.onboarding_completed;
       user.skills = req.body.skills || user.skills;
       user.industries = req.body.industries || user.industries;

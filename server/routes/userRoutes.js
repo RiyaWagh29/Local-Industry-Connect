@@ -10,13 +10,14 @@ import {
 } from "../controllers/userController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
 // Profile
 router.route("/profile")
   .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
+  .put(protect, upload.single("avatar"), updateUserProfile);
 
 // 🔥 FIX: PROTECT mentors route
 router.route("/mentors").get(protect, getAllMentors);
