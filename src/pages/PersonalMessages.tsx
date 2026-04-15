@@ -7,9 +7,10 @@ import { useLanguage } from "@/lib/language-context";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
-import { PersonalMessage } from "@/lib/types";
+import { Conversation, PersonalMessage } from "@/lib/types";
 import { getAvatarUrl } from "@/lib/avatar";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 export default function PersonalMessages() {
   const { id: paramId } = useParams<{ id?: string }>();
@@ -21,13 +22,20 @@ export default function PersonalMessages() {
   const [selectedId, setSelectedId] = useState<string | null>(paramId ?? null);
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
+  const [followedMentorConversations, setFollowedMentorConversations] = useState<Conversation[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Premium flow state
   const [isPremium, setIsPremium] = useState(false);
   const [showQR, setShowQR] = useState(false);
 
-  const activeConv = selectedId ? conversations.find((c) => c.id === selectedId) : null;
+  const allConversations = (() => {
+    const existingIds = new Set(conversations.map((conv) => conv.id));
+    const extraFollowedMentors = followedMentorConversations.filter((conv) => !existingIds.has(conv.id));
+    return [...conversations, ...extraFollowedMentors];
+  })();
+
+  const activeConv = selectedId ? allConversations.find((c) => c.id === selectedId) : null;
   const [activeMessages, setActiveMessages] = useState<PersonalMessage[]>([]);
   const [isThreadLoading, setIsThreadLoading] = useState(false);
 
@@ -38,6 +46,45 @@ export default function PersonalMessages() {
   useEffect(() => {
     if (paramId) fetchConversations();
   }, [paramId, fetchConversations]);
+
+  useEffect(() => {
+    const fetchFollowedMentors = async () => {
+      if (user?.role !== "student" || !Array.isArray(user.following) || user.following.length === 0) {
+        setFollowedMentorConversations([]);
+        return;
+      }
+
+      try {
+        const res = await api.get("/users/mentors");
+        const payload = res.data?.data || [];
+        if (!Array.isArray(payload)) {
+          setFollowedMentorConversations([]);
+          return;
+        }
+
+        const followedSet = new Set(user.following);
+        const mapped = payload
+          .filter((mentor: any) => followedSet.has(mentor._id || mentor.id))
+          .map((mentor: any) => ({
+            id: mentor._id || mentor.id,
+            participantName: mentor.name || "Mentor",
+            participantAvatar: mentor.avatar || "",
+            participantRole: "mentor" as const,
+            messages: [],
+            lastMessage: "",
+            lastTime: "",
+            unread: 0,
+          }));
+
+        setFollowedMentorConversations(mapped);
+      } catch (error) {
+        console.error("Failed to fetch followed mentors for messages:", error);
+        setFollowedMentorConversations([]);
+      }
+    };
+
+    fetchFollowedMentors();
+  }, [user?.role, user?.following]);
 
   useEffect(() => {
     const loadThread = async () => {
@@ -126,7 +173,7 @@ export default function PersonalMessages() {
     return "";
   };
 
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredConversations = allConversations.filter((conv) => {
     const queryLower = query.trim().toLowerCase();
     if (!queryLower) return true;
     const name = conv.participantName.toLowerCase();
