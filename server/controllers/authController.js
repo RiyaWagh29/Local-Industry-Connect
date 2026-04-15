@@ -40,6 +40,7 @@ export const registerUser = async (req, res) => {
       email,
       password,
       role: role || 'student',
+      isActive: false,
       skills: skills || [],
       interests: interests || [],
       bio: bio || '',
@@ -56,6 +57,7 @@ res.status(201).json({
     name: user.name,
     email: user.email,
     role: user.role,
+    isActive: user.isActive,
     onboarding_completed: user.onboarding_completed || false,
   },
 });
@@ -107,6 +109,7 @@ export const loginUser = async (req, res) => {
           name: adminUser.name,
           email: adminUser.email,
           role: adminUser.role,
+          isActive: adminUser.isActive,
           onboarding_completed: true,
         },
       });
@@ -124,6 +127,7 @@ res.json({
     name: user.name,
     email: user.email,
     role: user.role,
+    isActive: user.isActive,
     onboarding_completed: user.onboarding_completed || false,
   },
 });

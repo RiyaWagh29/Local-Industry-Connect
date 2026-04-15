@@ -22,9 +22,18 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({ success: false, message: 'Not authorized, user not found' });
       }
 
-      // Check if account is active
-      if (!req.user.isActive) {
-        return res.status(403).json({ success: false, message: 'Your account has been suspended. Please contact support.' });
+      if (!req.user.isActive && req.user.role !== 'admin') {
+        const isReadOnlyRequest = ['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+        const isProfileCompletionRequest =
+          (req.method === 'PUT' || req.method === 'PATCH') &&
+          req.originalUrl.startsWith('/api/users/profile');
+
+        if (!isReadOnlyRequest && !isProfileCompletionRequest) {
+          return res.status(403).json({
+            success: false,
+            message: 'Your account is pending admin approval. You can browse the platform, but actions are disabled until approval.',
+          });
+        }
       }
 
       next();

@@ -11,6 +11,7 @@ export interface User {
   email: string;
   role: Role;
   avatar?: string;
+  isActive?: boolean;
   industries?: string[];
   skills?: string[];
   goals?: string;

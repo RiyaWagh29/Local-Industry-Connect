@@ -173,7 +173,7 @@ export default function AdminDashboard() {
                       {u.isActive ? (
                         <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">Active</Badge>
                       ) : (
-                        <Badge variant="destructive">Suspended</Badge>
+                        <Badge variant="secondary" className="text-amber-700 border-amber-200 bg-amber-50">Pending Approval</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -183,7 +183,12 @@ export default function AdminDashboard() {
                             <Button size="sm" variant="outline" onClick={() => promoteUser(u._id)} title="Promote to Admin">
                               <ShieldCheck size={14} />
                             </Button>
-                            <Button size="sm" variant={u.isActive ? "destructive" : "secondary"} onClick={() => toggleUserStatus(u._id)}>
+                            <Button
+                              size="sm"
+                              variant={u.isActive ? "destructive" : "secondary"}
+                              onClick={() => toggleUserStatus(u._id)}
+                              title={u.isActive ? "Revoke access" : "Approve user"}
+                            >
                               {u.isActive ? <Ban size={14} /> : <UserCheck size={14} />}
                             </Button>
                           </>
