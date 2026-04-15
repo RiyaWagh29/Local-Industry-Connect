@@ -24,6 +24,7 @@ export default function CommunityScreen() {
   const navigate = useNavigate();
   const { t, getLocalized } = useLanguage();
   const { user } = useAuth();
+  const communitiesRoute = user?.role === "mentor" ? "/mentor/communities" : "/student/communities";
   const [community, setCommunity] = useState<Community | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("chat");
@@ -103,7 +104,7 @@ export default function CommunityScreen() {
         <Info size={32} />
       </div>
       <p className="font-medium">{t("community.notFound") || "Community not found"}</p>
-      <button onClick={() => navigate("/student/communities")} className="text-primary font-bold hover:underline">
+      <button onClick={() => navigate(communitiesRoute)} className="text-primary font-bold hover:underline">
         {t("nav.communities") || "Go back to Communities"}
       </button>
     </div>
@@ -171,7 +172,7 @@ export default function CommunityScreen() {
       if (community?.id) leaveCommunity(community.id);
       setJoined(false);
       toast.success(t("community.leftSuccess") || "Successfully left the community");
-      navigate("/student/communities");
+      navigate(communitiesRoute);
     }
   };
 

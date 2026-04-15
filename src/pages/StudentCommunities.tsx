@@ -1,6 +1,7 @@
 import { CommunityCard } from "@/components/mentor-connect/CommunityCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
 import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import api from "@/lib/api";
@@ -9,6 +10,7 @@ import { getJoinedCommunityIds } from "@/lib/community-join";
 
 export default function StudentCommunities() {
   const { t, getLocalized } = useLanguage();
+  const { user } = useAuth();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [joinedIds, setJoinedIds] = useState<string[]>([]);
@@ -25,6 +27,7 @@ export default function StudentCommunities() {
   const filteredCommunities = safeCommunities.filter(matchesCommunitySearch);
   const joinedCommunities = filteredCommunities.filter((c) => joinedIds.includes(c.id));
   const visibleJoinedCommunities = showAllJoined ? joinedCommunities : joinedCommunities.slice(0, 3);
+  const isMentorView = user?.role === "mentor";
 
   useEffect(() => {
     const fetchCommunities = async () => {
@@ -122,7 +125,7 @@ export default function StudentCommunities() {
                 ) : (
                   <div className="col-span-full py-12 border border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-3 bg-muted/20">
                     <p className="text-muted-foreground font-medium">
-                      {t("home.noJoinedCommunities") || "No Joined Communities"}
+                      {isMentorView ? "You have not joined any communities yet" : (t("home.noJoinedCommunities") || "No Joined Communities")}
                     </p>
                   </div>
                 )}

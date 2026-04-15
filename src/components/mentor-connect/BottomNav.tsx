@@ -23,9 +23,9 @@ export function BottomNav() {
 
   const mentorTabs = [
     { path: "/mentor/dashboard", icon: LayoutDashboard, label: t("nav.dashboard") },
+    { path: "/mentor/explore", icon: Search, label: t("nav.explore") },
+    { path: "/mentor/communities", icon: Users, label: t("nav.communities") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
-    { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
-    { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
   ];
 
@@ -80,9 +80,10 @@ export function MobileTopNav() {
 
   const mentorTabs = [
     { path: "/mentor/dashboard", icon: LayoutDashboard, label: t("nav.dashboard") },
+    { path: "/mentor/explore", icon: Search, label: t("nav.explore") },
+    { path: "/mentor/communities", icon: Users, label: t("nav.communities") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
     { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
-    { path: "/mentor/members", icon: Users, label: t("nav.members") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
   ];
@@ -175,9 +176,10 @@ export function DesktopSidebar() {
 
   const mentorTabs = [
     { path: "/mentor/dashboard", icon: LayoutDashboard, label: t("nav.dashboard") },
+    { path: "/mentor/explore", icon: Search, label: t("nav.explore") },
+    { path: "/mentor/communities", icon: Users, label: t("nav.communities") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
     { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
-    { path: "/mentor/members", icon: Users, label: t("nav.members") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
   ];

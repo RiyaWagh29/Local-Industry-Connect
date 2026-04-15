@@ -9,6 +9,7 @@ import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { MentorCard } from "@/components/mentor-connect/MentorCard";
 import { CommunityCard } from "@/components/mentor-connect/CommunityCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Community } from "@/lib/types";
@@ -33,8 +34,7 @@ export default function StudentHome() {
       : safeMentors.filter((m) => m?.industry === selectedIndustry)
   )
     .slice()
-    .sort((a, b) => (b?.averageRating || 0) - (a?.averageRating || 0))
-    .slice(0, 3);
+    .sort((a, b) => (b?.averageRating || 0) - (a?.averageRating || 0));
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -144,11 +144,18 @@ export default function StudentHome() {
                 {[...Array(4)].map((_, i) => <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />)}
               </div>
             ) : (filteredMentors || []).length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {filteredMentors.map((mentor) => (
-                  <MentorCard key={mentor?.id || Math.random()} mentor={mentor} />
-                ))}
-              </div>
+              <Carousel
+                opts={{ align: "start", dragFree: true }}
+                className="w-full"
+              >
+                <CarouselContent className="-ml-4">
+                  {filteredMentors.map((mentor) => (
+                    <CarouselItem key={mentor?.id || Math.random()} className="pl-4 basis-[78%] sm:basis-[48%] lg:basis-[31%] xl:basis-[24%]">
+                      <MentorCard mentor={mentor} />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
             ) : (
                 <div className="w-full py-12 border border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-3 bg-muted/20">
                     <Users size={32} className="text-muted-foreground opacity-20" />

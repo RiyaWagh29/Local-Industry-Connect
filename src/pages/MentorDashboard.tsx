@@ -4,6 +4,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
+import { MentorCard } from "@/components/mentor-connect/MentorCard";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { useMentors } from "@/lib/mentors-context";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 
@@ -31,6 +34,7 @@ type DashboardResource = {
 export default function MentorDashboard() {
   const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
+  const { mentors, isLoading: mentorsLoading } = useMentors();
   const navigate = useNavigate();
   const [showShareForm, setShowShareForm] = useState(false);
   const [showCommunityPicker, setShowCommunityPicker] = useState(false);
@@ -120,6 +124,12 @@ export default function MentorDashboard() {
       action: () => navigate("/mentor/community"),
       color: "bg-primary/10 text-primary hover:bg-primary hover:text-white"
     },
+    {
+      label: "Browse Communities",
+      icon: Users,
+      action: () => navigate("/mentor/communities"),
+      color: "bg-primary/10 text-primary hover:bg-primary hover:text-white"
+    },
     { 
       label: t("mentor.dashboard.shareResource") || "Share Resource", 
       icon: Share2, 
@@ -133,6 +143,8 @@ export default function MentorDashboard() {
       color: "bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500 hover:text-white"
     },
   ];
+
+  const otherMentors = (Array.isArray(mentors) ? mentors : []).filter((mentor) => mentor?.id && mentor.id !== user?.id);
 
   return (
     <ResponsiveLayout>
@@ -180,7 +192,7 @@ export default function MentorDashboard() {
             <h2 className="text-caption font-bold text-muted-foreground uppercase tracking-widest ml-1">
               {t("mentor.dashboard.actions") || "Quick Actions"}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {quickActions.map((btn) => (
                 <button 
                   key={btn.label} 
@@ -199,6 +211,39 @@ export default function MentorDashboard() {
                 </button>
               ))}
             </div>
+          </section>
+
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-h2 text-foreground font-bold">Explore Mentors</h2>
+              <button
+                onClick={() => navigate("/mentor/explore")}
+                className="text-caption font-bold text-primary hover:underline"
+              >
+                {t("seeAll") || "See All"}
+              </button>
+            </div>
+
+            {mentorsLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />)}
+              </div>
+            ) : otherMentors.length > 0 ? (
+              <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+                <CarouselContent className="-ml-4">
+                  {otherMentors.map((mentor) => (
+                    <CarouselItem key={mentor.id} className="pl-4 basis-[78%] sm:basis-[48%] lg:basis-[31%] xl:basis-[24%]">
+                      <MentorCard mentor={mentor} />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            ) : (
+              <div className="w-full py-12 border border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-center space-y-3 bg-muted/20">
+                <Users size={32} className="text-muted-foreground opacity-20" />
+                <p className="text-muted-foreground">No other mentors found</p>
+              </div>
+            )}
           </section>
 
           {/* Recent Activity Placeholder */}

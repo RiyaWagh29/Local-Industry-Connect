@@ -69,7 +69,10 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?
       "/onboarding/student",
       "/onboarding/mentor",
       "/student/explore",
+      "/mentor/explore",
       "/student/leaderboard",
+      "/student/communities",
+      "/mentor/communities",
     ];
 
     const isAllowedPendingRoute = pendingApprovalAllowedRoutes.some((route) =>
@@ -103,8 +106,10 @@ const AppRoutes = () => {
       <Route path="/dashboard" element={<ProtectedRoute roles={["student"]}><StudentHome /></ProtectedRoute>} />
       <Route path="/student/home" element={<Navigate to="/dashboard" replace />} />
       <Route path="/student/explore" element={<ProtectedRoute roles={["student"]}><ExploreMentors /></ProtectedRoute>} />
+      <Route path="/mentor/explore" element={<ProtectedRoute roles={["mentor"]}><ExploreMentors /></ProtectedRoute>} />
       <Route path="/student/leaderboard" element={<ProtectedRoute roles={["student"]}><Leaderboard /></ProtectedRoute>} />
       <Route path="/student/communities" element={<ProtectedRoute roles={["student"]}><StudentCommunities /></ProtectedRoute>} />
+      <Route path="/mentor/communities" element={<ProtectedRoute roles={["mentor"]}><StudentCommunities /></ProtectedRoute>} />
       <Route path="/student/meetings" element={<ProtectedRoute roles={["student"]}><StudentMeetings /></ProtectedRoute>} />
       <Route path="/student/profile" element={<ProtectedRoute roles={["student"]}><StudentProfile /></ProtectedRoute>} />
       
