@@ -125,7 +125,7 @@ export default function StudentOnboarding() {
                 />
                 <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-foreground cursor-pointer hover:bg-muted transition-colors">
                   <Camera size={16} />
-                  <span>{t("student.profile.editPhoto") || "Add Photo"}</span>
+                  <span>Choose Photo</span>
                   <input
                     type="file"
                     accept="image/*"

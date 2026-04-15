@@ -27,10 +27,14 @@ export default function StudentHome() {
   const safeMentors = Array.isArray(mentors) ? mentors : [];
   const safeCommunities = Array.isArray(communities) ? communities : [];
 
-  const filteredMentors =
+  const filteredMentors = (
     selectedIndustry === "All"
-      ? safeMentors.slice(0, 6)
-      : safeMentors.filter((m) => m?.industry === selectedIndustry).slice(0, 6);
+      ? safeMentors
+      : safeMentors.filter((m) => m?.industry === selectedIndustry)
+  )
+    .slice()
+    .sort((a, b) => (b?.averageRating || 0) - (a?.averageRating || 0))
+    .slice(0, 3);
 
   const greeting = () => {
     const hour = new Date().getHours();
