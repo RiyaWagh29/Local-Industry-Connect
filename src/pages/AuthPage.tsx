@@ -204,37 +204,6 @@ export default function AuthPage() {
             </div>
           )}
 
-          {authTab === "signup" && roleTab === "mentor" && (
-            <div className="space-y-4 rounded-xl border border-border bg-muted/30 p-4">
-              <div>
-                <input
-                  type="url"
-                  value={linkedinProfile}
-                  onChange={(e) => { setLinkedinProfile(e.target.value); clearErrors("linkedinProfile"); }}
-                  placeholder="LinkedIn profile link"
-                  className={`w-full px-4 py-3 rounded-lg border ${errors.linkedinProfile ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
-                />
-                {errors.linkedinProfile && <p className="text-caption text-destructive mt-1">{errors.linkedinProfile}</p>}
-              </div>
-
-              <div>
-                <label className={`block w-full px-4 py-3 rounded-lg border ${errors.officeIdCard ? "border-destructive" : "border-input"} bg-background text-body text-foreground cursor-pointer`}>
-                  <span>{officeIdCard ? officeIdCard.name : "Upload office ID card photo"}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      setOfficeIdCard(e.target.files?.[0] || null);
-                      clearErrors("officeIdCard");
-                    }}
-                  />
-                </label>
-                {errors.officeIdCard && <p className="text-caption text-destructive mt-1">{errors.officeIdCard}</p>}
-              </div>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {authTab === "signup" && (
               <div>
@@ -246,6 +215,43 @@ export default function AuthPage() {
                   id="auth-name"
                 />
                 {errors.name && <p className="text-caption text-destructive mt-1">{errors.name}</p>}
+              </div>
+            )}
+
+            {authTab === "signup" && roleTab === "mentor" && (
+              <div className="space-y-4 rounded-xl border border-border bg-muted/30 p-4">
+                <div className="space-y-2">
+                  <label className="text-caption font-medium text-muted-foreground">
+                    LinkedIn Profile Link
+                  </label>
+                  <input
+                    type="url"
+                    value={linkedinProfile}
+                    onChange={(e) => { setLinkedinProfile(e.target.value); clearErrors("linkedinProfile"); }}
+                    placeholder="https://www.linkedin.com/in/your-profile"
+                    className={`w-full px-4 py-3 rounded-lg border ${errors.linkedinProfile ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
+                  />
+                  {errors.linkedinProfile && <p className="text-caption text-destructive mt-1">{errors.linkedinProfile}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-caption font-medium text-muted-foreground">
+                    Office ID Card Photo
+                  </label>
+                  <label className={`block w-full px-4 py-3 rounded-lg border ${errors.officeIdCard ? "border-destructive" : "border-input"} bg-background text-body text-foreground cursor-pointer`}>
+                    <span>{officeIdCard ? officeIdCard.name : "Choose office ID card image"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        setOfficeIdCard(e.target.files?.[0] || null);
+                        clearErrors("officeIdCard");
+                      }}
+                    />
+                  </label>
+                  {errors.officeIdCard && <p className="text-caption text-destructive mt-1">{errors.officeIdCard}</p>}
+                </div>
               </div>
             )}
 
