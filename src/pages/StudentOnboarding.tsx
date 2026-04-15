@@ -8,9 +8,10 @@ import { SkillTag } from "@/components/mentor-connect/SkillTag";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { industries } from "@/lib/constants";
-import { ArrowLeft, ArrowRight, Sparkles, Target, Star } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles, Target, Star, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
+import { getAvatarUrl } from "@/lib/avatar";
 
 export default function StudentOnboarding() {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export default function StudentOnboarding() {
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
   const [goals, setGoals] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -67,12 +70,16 @@ export default function StudentOnboarding() {
   const handleFinish = async () => {
     if (!validateStep()) return;
     try {
-      await updateUser({ 
-        industries: selectedIndustries, 
-        skills, 
-        goals,
-        onboarding_completed: true
-      });
+      const formData = new FormData();
+      formData.append("industries", JSON.stringify(selectedIndustries));
+      formData.append("skills", JSON.stringify(skills));
+      formData.append("goals", goals);
+      formData.append("onboarding_completed", "true");
+      if (selectedAvatar) {
+        formData.append("avatar", selectedAvatar);
+      }
+
+      await updateUser(formData);
       toast.success(t("studentOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎉`);
       navigate("/student/home");
     } catch (error) {
@@ -108,6 +115,28 @@ export default function StudentOnboarding() {
                 <p className="text-body text-muted-foreground">
                   {t("studentOnboard.step2.subtitle")}
                 </p>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border">
+                <img
+                  src={avatarPreview || getAvatarUrl(user?.name, user?.avatar)}
+                  alt={user?.name || "Student"}
+                  className="w-20 h-20 rounded-2xl object-cover border border-border"
+                />
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-foreground cursor-pointer hover:bg-muted transition-colors">
+                  <Camera size={16} />
+                  <span>{t("student.profile.editPhoto") || "Add Photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedAvatar(file);
+                      setAvatarPreview(file ? URL.createObjectURL(file) : null);
+                    }}
+                  />
+                </label>
               </div>
 
               <div className="flex flex-wrap gap-3">

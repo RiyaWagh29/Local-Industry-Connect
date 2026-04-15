@@ -8,8 +8,9 @@ import { SkillTag } from "@/components/mentor-connect/SkillTag";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { industries } from "@/lib/constants";
-import { ArrowLeft, ArrowRight, Briefcase, Award, Target, Star, Building2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Briefcase, Award, Target, Star, Building2, Camera } from "lucide-react";
 import { toast } from "sonner";
+import { getAvatarUrl } from "@/lib/avatar";
 
 export default function MentorOnboarding() {
   const navigate = useNavigate();
@@ -26,6 +27,8 @@ export default function MentorOnboarding() {
   const [skillInput, setSkillInput] = useState("");
   const [guidance, setGuidance] = useState("");
   const [offerTypes, setOfferTypes] = useState<string[]>([]);
+  const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -70,14 +73,18 @@ export default function MentorOnboarding() {
   const handleFinish = async () => {
     if (!validateStep()) return;
     try {
-      await updateUser({ 
-        industries: [selectedIndustry], 
-        skills, 
-        company, 
-        experience, 
-        guidance,
-        onboarding_completed: true
-      });
+      const formData = new FormData();
+      formData.append("industries", JSON.stringify([selectedIndustry]));
+      formData.append("skills", JSON.stringify(skills));
+      formData.append("company", company);
+      formData.append("experience", String(experience));
+      formData.append("guidance", guidance);
+      formData.append("onboarding_completed", "true");
+      if (selectedAvatar) {
+        formData.append("avatar", selectedAvatar);
+      }
+
+      await updateUser(formData);
       toast.success(t("mentorOnboard.welcome") || `Welcome to MentorConnect, ${user?.name}! 🎓`);
       navigate("/mentor/dashboard");
     } catch (error) {
@@ -116,6 +123,28 @@ export default function MentorOnboarding() {
                 <p className="text-body text-muted-foreground">
                   {t("mentorOnboard.step2.subtitle")}
                 </p>
+              </div>
+
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border">
+                <img
+                  src={avatarPreview || getAvatarUrl(user?.name, user?.avatar)}
+                  alt={user?.name || "Mentor"}
+                  className="w-20 h-20 rounded-2xl object-cover border border-border"
+                />
+                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-foreground cursor-pointer hover:bg-muted transition-colors">
+                  <Camera size={16} />
+                  <span>{t("student.profile.editPhoto") || "Add Photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedAvatar(file);
+                      setAvatarPreview(file ? URL.createObjectURL(file) : null);
+                    }}
+                  />
+                </label>
               </div>
 
               <div className="space-y-6">

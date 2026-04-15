@@ -67,6 +67,27 @@ export const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
     if (user) {
+      const parseValue = (value, fallback) => {
+        if (value === undefined) return fallback;
+        if (typeof value !== 'string') return value;
+
+        const trimmed = value.trim();
+        if (!trimmed) return typeof fallback === 'string' ? '' : fallback;
+
+        try {
+          return JSON.parse(trimmed);
+        } catch {
+          if (typeof fallback === 'number') {
+            const numeric = Number(trimmed);
+            return Number.isNaN(numeric) ? fallback : numeric;
+          }
+          if (typeof fallback === 'boolean') {
+            return trimmed === 'true';
+          }
+          return trimmed;
+        }
+      };
+
       const uploadedAvatar = req.file
         ? await uploadBufferToSupabase({
             bucket: config.avatarBucket,
@@ -75,17 +96,17 @@ export const updateUserProfile = async (req, res) => {
           })
         : null;
 
-      user.name = req.body.name || user.name;
-      user.email = req.body.email || user.email;
-      user.bio = req.body.bio !== undefined ? req.body.bio : user.bio;
-      user.company = req.body.company !== undefined ? req.body.company : user.company;
-      user.experience = req.body.experience !== undefined ? req.body.experience : user.experience;
-      user.guidance = req.body.guidance !== undefined ? req.body.guidance : user.guidance;
-      user.goals = req.body.goals !== undefined ? req.body.goals : user.goals;
-      user.avatar = uploadedAvatar?.publicUrl || req.body.avatar || user.avatar;
-      user.onboarding_completed = req.body.onboarding_completed ?? user.onboarding_completed;
-      user.skills = req.body.skills || user.skills;
-      user.industries = req.body.industries || user.industries;
+      user.name = parseValue(req.body.name, user.name) || user.name;
+      user.email = parseValue(req.body.email, user.email) || user.email;
+      user.bio = parseValue(req.body.bio, user.bio);
+      user.company = parseValue(req.body.company, user.company);
+      user.experience = parseValue(req.body.experience, user.experience);
+      user.guidance = parseValue(req.body.guidance, user.guidance);
+      user.goals = parseValue(req.body.goals, user.goals);
+      user.avatar = uploadedAvatar?.publicUrl || parseValue(req.body.avatar, user.avatar) || user.avatar;
+      user.onboarding_completed = parseValue(req.body.onboarding_completed, user.onboarding_completed);
+      user.skills = parseValue(req.body.skills, user.skills);
+      user.industries = parseValue(req.body.industries, user.industries);
 
       const updatedUser = await user.save();
       res.json({ success: true, message: 'Profile updated', data: updatedUser });
