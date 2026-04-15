@@ -59,6 +59,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const payload = res.data?.data || res.data?.user;
       
       if (payload) {
+        const followersCount = typeof payload.followersCount === "number"
+          ? payload.followersCount
+          : Array.isArray(payload.followers)
+            ? payload.followers.length
+            : typeof payload.followers === "number"
+              ? payload.followers
+              : 0;
+        const followingCount = typeof payload.followingCount === "number"
+          ? payload.followingCount
+          : Array.isArray(payload.following)
+            ? payload.following.length
+            : typeof payload.following === "number"
+              ? payload.following
+              : 0;
         const mappedUser: User = {
           id: payload._id || payload.id,
           name: payload.name || "",
@@ -71,7 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           company: payload.company,
           experience: payload.experience,
           guidance: payload.guidance,
+          followersCount,
+          followingCount,
           onboarding_completed: payload.onboarding_completed ?? false,
+          following: payload.following || [],
         };
         setUser(mappedUser);
         setRoleState(mappedUser.role);
@@ -145,9 +162,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = async (data: Partial<User>) => {
     try {
       const res = await api.put("/users/profile", data);
-      if (res.data?.success) {
-        setUser(newUser);
-setRoleState(newUser.role);
+      const payload = res.data?.data || res.data?.user;
+      
+      if (payload) {
+        const followersCount = typeof payload.followersCount === "number"
+          ? payload.followersCount
+          : Array.isArray(payload.followers)
+            ? payload.followers.length
+            : typeof payload.followers === "number"
+              ? payload.followers
+              : 0;
+        const followingCount = typeof payload.followingCount === "number"
+          ? payload.followingCount
+          : Array.isArray(payload.following)
+            ? payload.following.length
+            : typeof payload.following === "number"
+              ? payload.following
+              : 0;
+        const mappedUser: User = {
+          id: payload._id || payload.id,
+          name: payload.name || "",
+          email: payload.email || "",
+          role: payload.role as Role,
+          avatar: payload.avatar,
+          industries: payload.industries || [],
+          skills: payload.skills || [],
+          goals: payload.goals,
+          company: payload.company,
+          experience: payload.experience,
+          guidance: payload.guidance,
+          followersCount,
+          followingCount,
+          onboarding_completed: payload.onboarding_completed ?? false,
+          following: payload.following || [],
+        };
+        setUser(mappedUser);
+        setRoleState(mappedUser.role);
+        localStorage.setItem("user", JSON.stringify(mappedUser));
       }
     } catch (err) {
       console.error("Update user failed:", err);

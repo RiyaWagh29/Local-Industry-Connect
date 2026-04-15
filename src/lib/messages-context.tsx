@@ -6,6 +6,7 @@ import { PersonalMessage, Conversation } from "./types";
 interface MessagesContextType {
   conversations: Conversation[];
   isLoading: boolean;
+  getConversation: (id: string) => Conversation | undefined;
   getConversationMessages: (id: string) => Promise<PersonalMessage[]>;
   sendMessage: (recipientId: string, text: string) => Promise<void>;
   startConversation: (participant: { id: string; name: string; avatar: string; role: "mentor" | "student" }) => Promise<void>;
@@ -24,8 +25,9 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     
     try {
       const response: any = await api.get("/messages");
-      if (response.success && response.data) {
-        setConversations(response.data);
+      const payload = response?.data;
+      if (payload?.success && Array.isArray(payload.data)) {
+        setConversations(payload.data);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -37,8 +39,9 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   const getConversationMessages = useCallback(async (id: string) => {
     try {
       const response: any = await api.get(`/messages/${id}`);
-      if (response.success && response.data) {
-        return response.data.map((msg: any) => ({
+      const payload = response?.data;
+      if (payload?.success && Array.isArray(payload.data)) {
+        return payload.data.map((msg: any) => ({
           id: msg._id,
           senderId: msg.sender._id,
           senderName: msg.sender.name,
@@ -64,7 +67,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         text
       });
 
-      if (response.success) {
+      if (response?.data?.success) {
         await fetchConversations(); // Refresh list to update last message
       }
     } catch (error) {
@@ -90,11 +93,15 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const getConversation = useCallback((id: string) => {
+    return conversations.find((c) => c.id === id);
+  }, [conversations]);
+
   // Poll for new messages every 5 seconds (Poor man's real-time)
   useEffect(() => {
     if (isAuthenticated) {
       fetchConversations();
-      const interval = setInterval(fetchConversations, 5000);
+      const interval = setInterval(fetchConversations, 10000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, fetchConversations]);
@@ -103,6 +110,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     <MessagesContext.Provider value={{ 
       conversations, 
       isLoading, 
+      getConversation,
       getConversationMessages, 
       sendMessage, 
       startConversation,
@@ -118,4 +126,3 @@ export function useMessages() {
   if (!ctx) throw new Error("useMessages must be used within MessagesProvider");
   return ctx;
 }
-

@@ -1,21 +1,95 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Hash } from "lucide-react";
-import { chatMessages } from "@/lib/constants";
 import { ChatMessage } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
-export function ChatSection() {
+interface ChatSectionProps {
+  communityId?: string;
+}
+
+export function ChatSection({ communityId }: ChatSectionProps) {
   const { user } = useAuth();
   const { t, getLocalized, language } = useLanguage();
-  const [messages, setMessages] = useState<ChatMessage[]>(chatMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!communityId) return;
+      setIsLoading(true);
+      try {
+        const res = await api.get(`/community-messages/${communityId}`);
+        const payload = res.data?.data || [];
+        if (Array.isArray(payload)) {
+          const mapped: ChatMessage[] = payload.map((m: any) => {
+            const timeStr = new Date(m.createdAt).toLocaleTimeString(language === "en" ? "en-US" : "mr-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return {
+              id: m._id,
+              senderId: m.sender_id?._id || m.sender_id,
+              senderName: { en: m.sender_id?.name || "Member", mr: m.sender_id?.name || "सदस्य" },
+              senderAvatar: m.sender_id?.avatar || "",
+              isMentor: m.sender_id?.role === "mentor",
+              text: { en: m.text, mr: m.text },
+              timestamp: m.createdAt,
+              time: { en: timeStr, mr: timeStr },
+            };
+          });
+          setMessages(mapped);
+        } else {
+          setMessages([]);
+        }
+      } catch (e) {
+        console.error("Fetch community messages failed", e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchMessages();
+  }, [communityId, language]);
+
+  useEffect(() => {
+    if (!communityId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/community-messages/${communityId}`);
+        const payload = res.data?.data || [];
+        if (Array.isArray(payload)) {
+          const mapped: ChatMessage[] = payload.map((m: any) => {
+            const timeStr = new Date(m.createdAt).toLocaleTimeString(language === "en" ? "en-US" : "mr-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return {
+              id: m._id,
+              senderId: m.sender_id?._id || m.sender_id,
+              senderName: { en: m.sender_id?.name || "Member", mr: m.sender_id?.name || "सदस्य" },
+              senderAvatar: m.sender_id?.avatar || "",
+              isMentor: m.sender_id?.role === "mentor",
+              text: { en: m.text, mr: m.text },
+              timestamp: m.createdAt,
+              time: { en: timeStr, mr: timeStr },
+            };
+          });
+          setMessages(mapped);
+        }
+      } catch (e) {
+        // silent polling
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [communityId, language]);
 
   const handleSend = () => {
     const trimmed = input.trim();
@@ -34,18 +108,22 @@ export function ChatSection() {
       minute: "2-digit" 
     });
 
-    const newMsg: ChatMessage = {
+    if (!communityId) return;
+    const optimistic: ChatMessage = {
       id: `c${Date.now()}`,
-      senderId: "me",
+      senderId: user?.id || "me",
       senderName: { en: user?.name || "Me", mr: user?.name || "मी" },
-      senderAvatar: "",
+      senderAvatar: user?.avatar || "",
       isMentor: user?.role === "mentor",
-      text: { en: trimmed, mr: trimmed }, // User input is same for both in this mock
+      text: { en: trimmed, mr: trimmed },
       timestamp: now.toISOString(),
       time: { en: timeStr, mr: timeStr },
     };
-    setMessages((prev) => [...prev, newMsg]);
+    setMessages((prev) => [...prev, optimistic]);
     setInput("");
+    api.post(`/community-messages/${communityId}`, { text: trimmed }).catch(() => {
+      toast.error("Failed to send message");
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -59,8 +137,15 @@ export function ChatSection() {
     <div className="flex flex-col h-[calc(100vh-220px)] lg:h-[calc(100vh-180px)] bg-muted/20 rounded-2xl border border-border overflow-hidden">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-border">
-        {messages.map((msg, index) => {
-          const isMe = msg.senderId === "me";
+        {isLoading && (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-10 bg-muted rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        )}
+        {!isLoading && messages.map((msg, index) => {
+          const isMe = msg.senderId === (user?.id || "me");
           const showAvatar = !isMe && (index === 0 || messages[index-1].senderId !== msg.senderId);
           
           return (

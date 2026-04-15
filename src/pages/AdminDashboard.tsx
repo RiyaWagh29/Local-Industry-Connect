@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
@@ -8,13 +8,36 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, ShieldCheck, RefreshCw, Ban, UserCheck, History, XCircle, ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { toast } from "sonner";
-
-const API_BASE = "https://local-industry-connect.onrender.com/api/admin";
+import api from "@/lib/api";
 
 export default function AdminDashboard() {
-  const [userState, setUserState] = useState({ data: [], page: 1, totalPages: 1 });
-  const [sessionState, setSessionState] = useState({ data: [], page: 1, totalPages: 1 });
-  const [logs, setLogs] = useState<any[]>([]);
+  type AdminUser = {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+    isActive?: boolean;
+  };
+
+  type AdminSession = {
+    _id: string;
+    student?: { name?: string };
+    mentor?: { name?: string };
+    start: string;
+    status: string;
+  };
+
+  type AuditLogEntry = {
+    _id: string;
+    action: string;
+    createdAt: string;
+    details: string;
+    actorId?: { name?: string };
+  };
+
+  const [userState, setUserState] = useState<{ data: AdminUser[]; page: number; totalPages: number }>({ data: [], page: 1, totalPages: 1 });
+  const [sessionState, setSessionState] = useState<{ data: AdminSession[]; page: number; totalPages: number }>({ data: [], page: 1, totalPages: 1 });
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -26,58 +49,50 @@ export default function AdminDashboard() {
 
   const fetchUsers = async (page = 1) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/users?page=${page}&limit=5`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const res = await api.get(`/admin/users?page=${page}&limit=5`);
+      const data = res.data;
       if (data.success) {
         setUserState({ data: data.data, page: data.page, totalPages: data.totalPages });
+      } else {
+        toast.error(data.message || "Error fetching users");
       }
     } catch (e) { toast.error("Error fetching users"); }
   };
 
   const fetchSessions = async (page = 1) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/sessions?page=${page}&limit=5`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const res = await api.get(`/admin/sessions?page=${page}&limit=5`);
+      const data = res.data;
       if (data.success) {
         setSessionState({ data: data.data, page: data.page, totalPages: data.totalPages });
+      } else {
+        toast.error(data.message || "Error fetching sessions");
       }
     } catch (e) { toast.error("Error fetching sessions"); }
   };
 
   const fetchLogs = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/logs`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
+      const res = await api.get(`/admin/logs`);
+      const data = res.data;
       if (data.success) setLogs(data.data);
+      else toast.error(data.message || "Error fetching audit logs");
     } catch (e) { console.error("Logs error:", e); }
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchUsers(), fetchSessions(), fetchLogs()]);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const promoteUser = async (userId: string) => {
-    const token = localStorage.getItem("token");
-    const res = await fetch(`${API_BASE}/promote/${userId}`, {
-      method: "PUT",
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-    const data = await res.json();
+    const res = await api.put(`/admin/promote/${userId}`);
+    const data = res.data;
     if (data.success) {
       toast.success("User promoted to Admin");
       fetchData();
@@ -85,12 +100,8 @@ export default function AdminDashboard() {
   };
 
   const toggleUserStatus = async (userId: string) => {
-    const token = localStorage.getItem("token");
-    const res = await fetch(`${API_BASE}/users/${userId}/status`, {
-      method: "PUT",
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-    const data = await res.json();
+    const res = await api.put(`/admin/users/${userId}/status`);
+    const data = res.data;
     if (data.success) {
       toast.success(data.message);
       fetchUsers(userState.page);
@@ -99,12 +110,8 @@ export default function AdminDashboard() {
   };
 
   const cancelSession = async (sessionId: string) => {
-    const token = localStorage.getItem("token");
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}/cancel`, {
-      method: "PUT",
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-    const data = await res.json();
+    const res = await api.put(`/admin/sessions/${sessionId}/cancel`);
+    const data = res.data;
     if (data.success) {
       toast.success("Session cancelled");
       fetchSessions(sessionState.page);
@@ -149,7 +156,7 @@ export default function AdminDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {userState.data.map((u: any) => (
+                {userState.data.map((u) => (
                   <TableRow key={u._id} className={!u.isActive ? "bg-destructive/5" : ""}>
                     <TableCell>
                       <div className="flex flex-col">
@@ -218,7 +225,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sessionState.data.map((s: any) => (
+                  {sessionState.data.map((s) => (
                     <TableRow key={s._id}>
                       <TableCell className="text-sm">
                         <div className="flex items-center gap-2">
@@ -266,14 +273,14 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="px-0">
                <div className="max-h-[400px] overflow-y-auto px-6 space-y-4 scrollbar-hide">
-                  {logs.map((log: any) => (
+                  {logs.map((log) => (
                     <div key={log._id} className="border-l-2 border-primary/30 pl-3 py-1 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">{log.action}</span>
                         <span className="text-[9px] text-muted-foreground">{new Date(log.createdAt).toLocaleTimeString()}</span>
                       </div>
                       <p className="text-xs text-foreground/80 leading-tight italic">"{log.details}"</p>
-                      <p className="text-[9px] text-muted-foreground">— by {log.adminId?.name}</p>
+                      <p className="text-[9px] text-muted-foreground">— by {log.actorId?.name}</p>
                     </div>
                   ))}
                   {logs.length === 0 && <p className="text-center text-xs text-muted-foreground py-10 italic">No recent admin actions recorded.</p>}

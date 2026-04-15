@@ -6,6 +6,7 @@ import {
   getMatchedMentors,
   rateMentor,
   getLeaderboard,
+  toggleFollowMentor,
 } from "../controllers/userController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -22,6 +23,10 @@ router.route("/mentors").get(protect, getAllMentors);
 
 router.route("/mentors/match")
   .get(protect, getMatchedMentors);
+
+// Follow Mentor
+router.route("/mentors/:id/follow")
+  .post(protect, toggleFollowMentor);
 
 // Rating
 router.route("/mentors/:id/rate")

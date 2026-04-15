@@ -1,45 +1,116 @@
-import { Bell, Settings, Plus, Share2, MessageSquare, Users, TrendingUp, Award, Briefcase } from "lucide-react";
+import { Plus, Share2, MessageSquare, Users, TrendingUp, Award, Calendar, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
-import { StatCard } from "@/components/mentor-connect/StatCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
-import { Logo } from "@/components/mentor-connect/Logo";
-import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
-import { Calendar } from "lucide-react";
+import api from "@/lib/api";
+
+type DashboardCommunity = {
+  _id?: string;
+  id?: string;
+  name?: string | { en?: string; mr?: string };
+  title?: string | { en?: string; mr?: string };
+  description?: string | { en?: string; mr?: string };
+  members?: number | unknown[];
+};
+
+type DashboardMeeting = {
+  status?: string;
+};
+
+type DashboardResource = {
+  sharedBy?: {
+    _id?: string;
+  } | string;
+  createdAt?: string;
+  sharedDate?: string;
+};
 
 export default function MentorDashboard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [showShareForm, setShowShareForm] = useState(false);
+  const [showCommunityPicker, setShowCommunityPicker] = useState(false);
+  const [mentorCommunities, setMentorCommunities] = useState<DashboardCommunity[]>([]);
+  const [selectedCommunity, setSelectedCommunity] = useState<DashboardCommunity | null>(null);
   const [meetingsCount, setMeetingsCount] = useState(0);
+  const [communityMembers, setCommunityMembers] = useState(0);
+  const [weeklyReach, setWeeklyReach] = useState(0);
 
   useEffect(() => {
-    // Fetch meetings count
+    if (!user?.id) return;
+    refreshUser();
+
+    // Fetch meetings + community + weekly reach
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/mentor/${user?.id}`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setMeetingsCount(data.data.filter((m: any) => m.status === 'pending').length);
+        const [meetRes, commRes, resRes] = await Promise.all([
+          api.get(`/meetings/mentor/${user.id}`),
+          api.get(`/communities/mentor/${user.id}`),
+          api.get(`/resources`)
+        ]);
+
+        const meetData = meetRes.data;
+        if (meetData?.success && Array.isArray(meetData.data)) {
+          setMeetingsCount(meetData.data.filter((m: DashboardMeeting) => m.status === "completed").length);
+        } else {
+          setMeetingsCount(0);
+        }
+
+        const commData = commRes.data;
+        if (commData?.success && Array.isArray(commData.data)) {
+          setMentorCommunities(commData.data);
+          const memberTotal = commData.data.reduce((sum: number, c: DashboardCommunity) => {
+            const members = Array.isArray(c.members) ? c.members.length : Number(c.members || 0);
+            return sum + members;
+          }, 0);
+          setCommunityMembers(memberTotal);
+        } else {
+          setMentorCommunities([]);
+          setCommunityMembers(0);
+        }
+
+        const resData = resRes.data;
+        if (resData?.success && Array.isArray(resData.data)) {
+          const now = Date.now();
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          const weeklyCount = resData.data.filter((r: DashboardResource) => {
+            const sharedById = r.sharedBy?._id || r.sharedBy;
+            if (!sharedById || sharedById.toString() !== user.id.toString()) return false;
+            const ts = new Date(r.createdAt || r.sharedDate).getTime();
+            return !Number.isNaN(ts) && (now - ts) <= sevenDaysMs;
+          }).length;
+          setWeeklyReach(weeklyCount);
+        } else {
+          setWeeklyReach(0);
         }
       } catch (e) { console.error(e); }
     };
-    if (user?.id) fetchStats();
-  }, [user?.id]);
+    fetchStats();
+  }, [user?.id, refreshUser]);
+
+  const followersCount = typeof user?.followersCount === "number"
+    ? user.followersCount
+    : Array.isArray(user?.followers)
+      ? user.followers.length
+      : typeof user?.followers === "number"
+        ? user.followers
+        : 0;
+
+  const getCommunityName = (community: DashboardCommunity) => {
+    const value = community.name || community.title;
+    if (typeof value === "string") return value;
+    return value?.en || value?.mr || "Untitled Community";
+  };
 
   const stats = [
-    { label: t("mentor.dashboard.totalFollowers") || "Total Followers", value: user?.followers?.toLocaleString() || "1,240", icon: Users, variant: "mentor" },
-    { label: t("mentor.dashboard.communityMembers") || "Community Members", value: user?.communities?.toLocaleString() || "450", icon: Award, variant: "mentor" },
-    { label: t("nav.meetings") || "Upcoming Meetings", value: meetingsCount.toString(), icon: Calendar, variant: "primary" },
-    { label: t("mentor.dashboard.weeklyReach") || "Weekly Reach", value: "3.2K", icon: TrendingUp, variant: "default" },
+    { label: t("mentor.dashboard.totalFollowers") || "Total Followers", value: followersCount.toLocaleString(), icon: Users, variant: "mentor" },
+    { label: t("mentor.dashboard.communityMembers") || "Community Members", value: communityMembers.toLocaleString(), icon: Award, variant: "mentor" },
+    { label: t("mentor.dashboard.meetingsDone") || "Meetings", value: meetingsCount.toLocaleString(), icon: Calendar, variant: "primary" },
+    { label: t("mentor.dashboard.weeklyReach") || "Weekly Reach", value: weeklyReach.toLocaleString(), icon: TrendingUp, variant: "default" },
   ];
 
   const quickActions = [
@@ -52,7 +123,7 @@ export default function MentorDashboard() {
     { 
       label: t("mentor.dashboard.shareResource") || "Share Resource", 
       icon: Share2, 
-      action: () => setShowShareForm(true),
+      action: () => setShowCommunityPicker(true),
       color: "bg-mentor/10 text-mentor hover:bg-mentor hover:text-white"
     },
     { 
@@ -66,29 +137,6 @@ export default function MentorDashboard() {
   return (
     <ResponsiveLayout>
       <div className="min-h-screen bg-background pb-20 lg:pb-8 animate-fade-in">
-        {/* Mobile Top Bar */}
-        <div className="sticky top-0 bg-card/90 backdrop-blur-xl border-b border-border/50 z-40 px-4 py-3 lg:hidden shadow-sm">
-          <div className="max-w-3xl mx-auto flex justify-between items-center">
-            <Logo size="sm" variant="mentor" />
-            <div className="flex items-center gap-2">
-              <LanguageToggle />
-              <button 
-                onClick={() => toast.info(t("mentor.dashboard.notifications") || "No new notifications")} 
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-mentor/10 hover:text-mentor transition-all relative"
-              >
-                <Bell size={18} />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-destructive border-2 border-card" />
-              </button>
-              <button 
-                onClick={() => navigate("/mentor/profile")} 
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-mentor/10 hover:text-mentor transition-all"
-              >
-                <Settings size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
           {/* Welcome Header */}
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-mentor/10 via-background to-primary/10 p-8 border border-mentor/5">
@@ -110,7 +158,7 @@ export default function MentorDashboard() {
             <h2 className="text-caption font-bold text-muted-foreground uppercase tracking-widest ml-1">
               {t("mentor.dashboard.performance") || "Your Performance"}
             </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
               {stats.map((stat, i) => (
                 <div key={i} className="bg-card rounded-2xl border border-border p-6 shadow-sm hover:shadow-md transition-all group">
                   <div className={`w-10 h-10 rounded-xl mb-4 flex items-center justify-center transition-transform group-hover:scale-110 ${
@@ -170,7 +218,90 @@ export default function MentorDashboard() {
         </div>
       </div>
 
-      {showShareForm && <ShareResourceForm onClose={() => setShowShareForm(false)} />}
+      {showCommunityPicker && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-lg rounded-3xl border border-border shadow-2xl shadow-primary/10 overflow-hidden">
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-border bg-gradient-to-r from-mentor/5 to-transparent">
+              <div>
+                <h2 className="text-h3 font-bold text-foreground">
+                  {t("mentor.dashboard.shareResource") || "Share Resource"}
+                </h2>
+                <p className="text-caption text-muted-foreground mt-1">
+                  Select one of your communities, then share the resource there.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCommunityPicker(false)}
+                className="w-10 h-10 rounded-2xl border border-border text-muted-foreground hover:bg-muted flex items-center justify-center transition-all"
+                aria-label="Close community picker"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {mentorCommunities.length > 0 ? (
+                mentorCommunities.map((community) => {
+                  const memberCount = Array.isArray(community.members) ? community.members.length : Number(community.members || 0);
+                  return (
+                    <button
+                      key={community._id || community.id || getCommunityName(community)}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCommunity(community);
+                        setShowCommunityPicker(false);
+                        setShowShareForm(true);
+                      }}
+                      className="w-full text-left p-5 rounded-2xl border border-border hover:border-mentor hover:bg-mentor/5 transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <h3 className="text-body font-bold text-foreground">
+                            {getCommunityName(community)}
+                          </h3>
+                          <p className="text-caption text-muted-foreground">
+                            {memberCount} {t("community.members") || "members"}
+                          </p>
+                        </div>
+                        <span className="text-caption font-bold text-mentor">
+                          Choose
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border p-8 text-center space-y-3">
+                  <h3 className="text-body font-bold text-foreground">
+                    No communities yet
+                  </h3>
+                  <p className="text-caption text-muted-foreground max-w-sm mx-auto">
+                    Create a community first, then you can share resources directly to it from this page.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/mentor/community")}
+                    className="px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-bold"
+                  >
+                    Start Community
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShareForm && (
+        <ShareResourceForm
+          onClose={() => {
+            setShowShareForm(false);
+            setSelectedCommunity(null);
+          }}
+          communityId={selectedCommunity?._id || selectedCommunity?.id}
+        />
+      )}
     </ResponsiveLayout>
   );
 }

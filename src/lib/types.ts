@@ -18,9 +18,12 @@ export interface User {
   experience?: number;
   guidance?: string;
   followers?: number;
+  followersCount?: number;
+  followingCount?: number;
   communities?: number;
   posts?: number;
   onboarding_completed?: boolean;
+  following?: string[];
 }
 
 export interface Mentor {
@@ -33,6 +36,7 @@ export interface Mentor {
   bio: LocalizedString;
   skills: string[];
   followers: number;
+  averageRating?: number;
   communities: number;
   posts: number;
   experience: number;

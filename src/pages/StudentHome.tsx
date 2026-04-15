@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Bell, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { useMentors } from "@/lib/mentors-context";
 import { Users, User } from "lucide-react";
-import { communities, industries } from "@/lib/constants";
+import { industries } from "@/lib/constants";
 import { IndustryChip } from "@/components/mentor-connect/IndustryChip";
 import { MentorCard } from "@/components/mentor-connect/MentorCard";
 import { CommunityCard } from "@/components/mentor-connect/CommunityCard";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
-import { Logo } from "@/components/mentor-connect/Logo";
-import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { toast } from "sonner";
+import api from "@/lib/api";
+import { Community } from "@/lib/types";
 import { useNavigate } from "react-router-dom";
 import { getText } from "@/lib/getText";
 
@@ -21,6 +21,8 @@ export default function StudentHome() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [selectedIndustry, setSelectedIndustry] = useState("All");
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [communitiesLoading, setCommunitiesLoading] = useState(true);
 
   const safeMentors = Array.isArray(mentors) ? mentors : [];
   const safeCommunities = Array.isArray(communities) ? communities : [];
@@ -39,32 +41,48 @@ export default function StudentHome() {
 
   const userName = getText(user?.name) || "Student";
 
+  useEffect(() => {
+    const fetchCommunities = async () => {
+      setCommunitiesLoading(true);
+      try {
+        const res = await api.get("/communities");
+        const payload = res.data?.data || [];
+        if (Array.isArray(payload)) {
+          const mapped: Community[] = payload.map((c: any) => {
+            const mentor = c.mentor_id || {};
+            const mentorName = mentor.name || "Expert";
+            return {
+              id: c._id || c.id,
+              name: { en: c.name || "", mr: c.name || "" },
+              description: { en: c.description || "", mr: c.description || "" },
+              members: Array.isArray(c.members) ? c.members.length : Number(c.members || 0),
+              image: c.image || mentor.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(mentorName)}&background=random`,
+              category: c.category || "General",
+              recentActivity: c.recentActivity,
+              mentorId: mentor._id || mentor,
+              mentorName: { en: mentorName, mr: mentorName },
+              mentorAvatar: mentor.avatar,
+              unread: c.unread || 0,
+            };
+          });
+          setCommunities(mapped);
+        } else {
+          setCommunities([]);
+        }
+      } catch (e) {
+        console.error("Fetch communities failed", e);
+        setCommunities([]);
+      } finally {
+        setCommunitiesLoading(false);
+      }
+    };
+    fetchCommunities();
+  }, []);
+
+
   return (
     <ResponsiveLayout>
       <div className="min-h-screen bg-background pb-20 lg:pb-8">
-        {/* Mobile Top Bar */}
-        <div className="sticky top-0 bg-card/90 backdrop-blur-xl border-b border-border/50 z-40 px-4 py-3 lg:hidden shadow-sm">
-          <div className="max-w-3xl mx-auto flex justify-between items-center">
-            <Logo size="sm" />
-            <div className="flex items-center gap-2">
-              <LanguageToggle />
-              <button 
-                onClick={() => navigate("/student/explore")} 
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary/10 transition-all"
-              >
-                <Search size={18} />
-              </button>
-              <button 
-                onClick={() => toast.info(t("home.notifications") || "No new notifications")} 
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:bg-primary/10 transition-all relative"
-              >
-                <Bell size={18} />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-destructive border-2 border-card" />
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-10 animate-fade-in">
           {/* Hero Greeting */}
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-mentor/10 p-8 border border-primary/5">
@@ -107,7 +125,7 @@ export default function StudentHome() {
           <section className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-h2 text-foreground font-bold">
-                {selectedIndustry === "All" ? t("home.mentorsSection") || "Recommended Mentors" : `${t("home.mentorsSection") || "Mentors in"} ${selectedIndustry}`}
+                {selectedIndustry === "All" ? t("home.mentorsSection") || "Recommended Mentors" : `Mentors in Nashik Industry`}
               </h2>
               <button 
                 onClick={() => navigate("/student/explore")}
@@ -150,7 +168,9 @@ export default function StudentHome() {
                 )}
               </div>
               <div className="grid grid-cols-1 gap-4">
-                {safeCommunities.length > 0 ? (
+                {communitiesLoading ? (
+                  <div className="h-28 rounded-2xl bg-muted animate-pulse" />
+                ) : safeCommunities.length > 0 ? (
                   safeCommunities.slice(0, 3).map((c) => (
                     <CommunityCard key={c.id} community={c} />
                   ))

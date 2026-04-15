@@ -6,11 +6,43 @@ import { SkillTag } from "@/components/mentor-connect/SkillTag";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
 import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import api from "@/lib/api";
+import { getAvatarUrl } from "@/lib/avatar";
+
+type CommunityWithMembers = {
+  members?: number | unknown[];
+};
 
 export default function MentorProfile() {
-  const { user, logout, isAuthenticated, isInitialized } = useAuth();
+  const { user, logout, isAuthenticated, isInitialized, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const { t, getLocalized } = useLanguage();
+  const { t } = useLanguage();
+  const [communityMembers, setCommunityMembers] = useState(0);
+
+  useEffect(() => {
+    refreshUser();
+    const fetchCommunityMembers = async () => {
+      if (!user?.id) return;
+      try {
+        const res = await api.get(`/communities/mentor/${user.id}`);
+        const payload = res.data?.data || [];
+        if (Array.isArray(payload)) {
+          const total = payload.reduce((sum: number, c: CommunityWithMembers) => {
+            const members = Array.isArray(c.members) ? c.members.length : Number(c.members || 0);
+            return sum + members;
+          }, 0);
+          setCommunityMembers(total);
+        } else {
+          setCommunityMembers(0);
+        }
+      } catch (e) {
+        console.error("Fetch communities failed", e);
+        setCommunityMembers(0);
+      }
+    };
+    fetchCommunityMembers();
+  }, [user?.id, refreshUser]);
 
   const handleLogout = async () => {
     try {
@@ -46,6 +78,15 @@ export default function MentorProfile() {
     );
   }
 
+  const followersCount = typeof user?.followersCount === "number"
+    ? user.followersCount
+    : Array.isArray(user?.followers)
+      ? user.followers.length
+      : typeof user?.followers === "number"
+        ? user.followers
+        : 0;
+  const profileAvatar = getAvatarUrl(user.name, user.avatar);
+
   const menuItems = [
     { label: t("nav.meetings") || "Manage Meetings", icon: Calendar, action: () => navigate("/mentor/meetings") },
     { label: t("mentor.dashboard.startDiscussion") || "Community Hub", icon: Users, action: () => navigate("/mentor/community") },
@@ -70,11 +111,7 @@ export default function MentorProfile() {
               <div className="flex flex-col md:flex-row md:items-end gap-6">
                 <div className="relative group">
                   <div className="w-32 h-32 rounded-3xl bg-mentor/10 border-4 border-card flex items-center justify-center shadow-xl overflow-hidden">
-                   {user.avatar ? (
-                     <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                   ) : (
-                     <span className="text-h1 text-mentor font-bold">{user.name?.charAt(0) || "M"}</span>
-                   )}
+                    <img src={profileAvatar} alt={user.name} className="w-full h-full object-cover" />
                   </div>
                   <button className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-primary text-primary-foreground shadow-lg hover:scale-110 transition-all border-2 border-card">
                     <Camera size={14} />
@@ -87,9 +124,9 @@ export default function MentorProfile() {
                   </div>
                   <p className="text-body font-medium text-muted-foreground">{user.company || "Independent Mentor"}</p>
                   <div className="flex items-center gap-4 mt-1 text-v-small font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                    <span className="flex items-center gap-1.5"><strong className="text-foreground">1.2K</strong> Followers</span>
+                    <span className="flex items-center gap-1.5"><strong className="text-foreground">{followersCount.toLocaleString()}</strong> Followers</span>
                     <span className="opacity-30">•</span>
-                    <span className="flex items-center gap-1.5"><strong className="text-foreground">450</strong> Members</span>
+                    <span className="flex items-center gap-1.5"><strong className="text-foreground">{communityMembers.toLocaleString()}</strong> Members</span>
                   </div>
                 </div>
               </div>

@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "server": "npm run server --prefix server",
     "test": "vitest run",
     "test:watch": "vitest"
   },

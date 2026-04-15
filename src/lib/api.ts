@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://local-industry-connect.onrender.com/api",
+  // In dev, Vite proxy will forward `/api` to the backend to avoid CORS.
+  // In prod, set VITE_API_URL to your full API origin.
+  baseURL: import.meta.env.VITE_API_URL || "/api",
 });
 
 // 🔥 Attach token automatically

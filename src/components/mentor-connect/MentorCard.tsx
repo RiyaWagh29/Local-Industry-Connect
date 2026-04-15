@@ -1,8 +1,9 @@
-import { Users } from "lucide-react";
+import { Users, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/lib/language-context";
 import { getText } from "@/lib/getText";
 import { Mentor } from "@/lib/types";
+import { useAuth } from "@/lib/auth-context";
 
 interface MentorCardProps {
   mentor: Mentor;
@@ -11,6 +12,7 @@ interface MentorCardProps {
 export function MentorCard({ mentor }: MentorCardProps) {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
 
   if (!mentor) return null;
 
@@ -20,6 +22,7 @@ export function MentorCard({ mentor }: MentorCardProps) {
   const company = mentor.company || "Professional";
   const industry = mentor.industry || "Software";
   const avatar = mentor.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Mentor')}&background=random`;
+  const isFollowing = !!mentorId && Array.isArray(user?.following) && user.following.includes(mentorId);
 
   return (
     <div className="min-w-[200px] bg-card rounded-card shadow-card p-4 flex flex-col items-center gap-3 border border-border animate-fade-in group hover:border-primary/50 transition-all duration-300">
@@ -34,12 +37,18 @@ export function MentorCard({ mentor }: MentorCardProps) {
       
       <div className="text-center space-y-1 w-full overflow-hidden">
         <h4 className="font-bold text-body text-foreground line-clamp-1">{name}</h4>
-        <p className="text-caption text-muted-foreground line-clamp-1">{role}</p>
-        <p className="text-v-small text-muted-foreground font-medium truncate">{company}</p>
+        <p className="text-[11px] leading-4 text-muted-foreground line-clamp-2 min-h-8">{role}</p>
+        <p className="text-[10px] leading-4 text-muted-foreground font-medium line-clamp-2 min-h-8">{company}</p>
+        {isFollowing && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+            <Check size={12} /> Following
+          </span>
+        )}
       </div>
 
-      <div className="flex items-center gap-3 w-full justify-center">
-        <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-v-small font-bold uppercase tracking-wider truncate max-w-[80px]">
+
+      <div className="flex items-center gap-2 w-full justify-center">
+        <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-[9px] font-bold tracking-wide leading-none whitespace-nowrap">
           {industry}
         </span>
         <div className="flex items-center gap-1 text-v-small text-muted-foreground">

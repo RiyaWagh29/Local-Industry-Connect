@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { communities } from "@/lib/constants";
 import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
@@ -9,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import api from "@/lib/api";
 
 export default function MentorCommunityManagement() {
   const [activeTab, setActiveTab] = useState("chat");
@@ -16,27 +16,32 @@ export default function MentorCommunityManagement() {
   const { user } = useAuth();
   const { t, getLocalized } = useLanguage();
   const navigate = useNavigate();
-  const [community, setCommunity] = useState<any>(null);
+  const [communities, setCommunities] = useState<any[]>([]);
+  const [activeCommunity, setActiveCommunity] = useState<any>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newComm, setNewComm] = useState({ name: "", description: "" });
   const [meetings, setMeetings] = useState<any[]>([]);
+  const [resourcesRefresh, setResourcesRefresh] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const headers = { "Authorization": `Bearer ${token}` };
-        
-        // Fetch community
-        const commRes = await fetch(`https://local-industry-connect.onrender.com/api/communities/mentor/${user?.id}`, { headers });
-        const commData = await commRes.json();
-        if (commData.success && commData.data?.[0]) {
-          setCommunity(commData.data[0]);
+        // Fetch communities for mentor
+        const commRes = await api.get(`/communities/mentor/${user?.id}`);
+        const commData = commRes.data;
+        if (commData.success && Array.isArray(commData.data)) {
+          setCommunities(commData.data);
+          if (activeCommunity) {
+            const refreshed = commData.data.find((c: any) => (c._id || c.id) === (activeCommunity._id || activeCommunity.id));
+            if (refreshed) setActiveCommunity(refreshed);
+          }
+        } else {
+          setCommunities([]);
         }
 
         // Fetch meetings
-        const meetRes = await fetch(`https://local-industry-connect.onrender.com/api/meetings/mentor/${user?.id}`, { headers });
-        const meetData = await meetRes.json();
+        const meetRes = await api.get(`/meetings/mentor/${user?.id}`);
+        const meetData = meetRes.data;
         if (meetData.success) {
           setMeetings(meetData.data);
         }
@@ -51,19 +56,12 @@ export default function MentorCommunityManagement() {
     e.preventDefault();
     if (!newComm.name || !newComm.description) return toast.error("Please fill all fields");
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch('https://local-industry-connect.onrender.com/api/communities', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newComm)
-      });
-      const data = await res.json();
+      const res = await api.post('/communities', newComm);
+      const data = res.data;
       if (data.success) {
         toast.success("Community created successfully!");
-        setCommunity(data.data);
+        setCommunities((prev) => [data.data, ...prev]);
+        setActiveCommunity(data.data);
         setIsCreating(false);
       } else {
         toast.error(data.message || "Failed to create community");
@@ -73,7 +71,9 @@ export default function MentorCommunityManagement() {
     }
   };
 
-  if (!community && !isCreating) {
+  const totalCommunities = communities.length;
+
+  if (totalCommunities === 0 && !isCreating) {
     return (
       <ResponsiveLayout>
         <div className="min-h-screen bg-background pb-20 lg:pb-0 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -142,6 +142,74 @@ export default function MentorCommunityManagement() {
     );
   }
 
+  if (!activeCommunity) {
+    return (
+      <ResponsiveLayout>
+        <div className="min-h-screen bg-background pb-20 lg:pb-0 animate-fade-in">
+          <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-h2 font-bold text-foreground">
+                  {t("nav.community") || "Your Communities"}
+                </h1>
+                <p className="text-body text-muted-foreground">
+                  {totalCommunities} {totalCommunities === 1 ? "community" : "communities"} created by you
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="px-6 py-3 rounded-2xl bg-mentor text-mentor-foreground font-bold shadow-xl shadow-mentor/20 hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                  <Plus size={18} className="inline-block mr-2" />
+                  Create Community
+                </button>
+                <button
+                  onClick={() => navigate("/mentor/dashboard")}
+                  className="px-6 py-3 rounded-2xl bg-transparent border border-border text-muted-foreground font-bold hover:bg-muted/40 transition-all"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+              {communities.map((c) => {
+                const memberCount = Array.isArray(c.members) ? c.members.length : Number(c.members || 0);
+                return (
+                  <button
+                    key={c._id || c.id}
+                    onClick={() => { setActiveCommunity(c); setActiveTab("chat"); }}
+                    className="w-full text-left px-5 py-4 hover:bg-muted/40 transition-all border-b border-border last:border-b-0"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-mentor/10 text-mentor flex items-center justify-center flex-shrink-0">
+                        <Users size={20} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <h3 className="text-body font-bold text-foreground truncate">{c.name}</h3>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-primary flex-shrink-0">
+                            Open
+                          </span>
+                        </div>
+                        <p className="text-caption text-muted-foreground mt-1 truncate">{c.description}</p>
+                        <div className="flex items-center gap-2 mt-2 text-caption text-muted-foreground">
+                          <Users size={14} className="text-mentor" />
+                          <span>{memberCount} {t("community.members") || "members"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </ResponsiveLayout>
+    );
+  }
+
   const tabs = [
     { key: "chat", label: t("mentor.community.tabChat") || "Communnity Chat" },
     { key: "meetings", label: t("nav.meetings") || "Meetings" },
@@ -163,13 +231,13 @@ export default function MentorCommunityManagement() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-h2 text-foreground font-bold tracking-tight">{community?.name}</h1>
+                    <h1 className="text-h2 text-foreground font-bold tracking-tight">{activeCommunity?.name}</h1>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-bold uppercase tracking-widest">{t("community.admin") || "Admin"}</span>
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-caption text-muted-foreground font-medium">
                     <div className="flex items-center gap-1.5">
                       <Users size={14} className="text-mentor" />
-                      <span>{community?.members || 0} {t("community.members") || "members"}</span>
+                      <span>{Array.isArray(activeCommunity?.members) ? activeCommunity.members.length : (activeCommunity?.members || 0)} {t("community.members") || "members"}</span>
                     </div>
                     <span className="opacity-30">•</span>
                     <div className="flex items-center gap-1.5">
@@ -181,6 +249,13 @@ export default function MentorCommunityManagement() {
               </div>
 
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setActiveCommunity(null)}
+                  className="p-2.5 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 transition-all shadow-sm"
+                  aria-label="Back"
+                >
+                  <ArrowLeft size={18} />
+                </button>
                 <button
                   onClick={() => setActiveTab("meetings")}
                   className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-caption font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
@@ -218,7 +293,7 @@ export default function MentorCommunityManagement() {
         {/* Content Section */}
         <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
           <div className="flex-1 p-4 md:p-8">
-            {activeTab === "chat" && <ChatSection />}
+            {activeTab === "chat" && <ChatSection communityId={activeCommunity?._id || activeCommunity?.id} />}
 
             {activeTab === "meetings" && (
               <div className="animate-fade-in space-y-6">
@@ -291,7 +366,10 @@ export default function MentorCommunityManagement() {
                   </div>
                 </div>
                 <div className="px-1">
-                  <SharedResourcesList />
+                  <SharedResourcesList
+                    communityId={activeCommunity?._id || activeCommunity?.id}
+                    refreshToken={resourcesRefresh}
+                  />
                 </div>
               </div>
             )}
@@ -299,7 +377,13 @@ export default function MentorCommunityManagement() {
         </div>
       </div>
 
-      {showShareForm && <ShareResourceForm onClose={() => setShowShareForm(false)} />}
+      {showShareForm && (
+        <ShareResourceForm
+          onClose={() => setShowShareForm(false)}
+          communityId={activeCommunity?._id || activeCommunity?.id}
+          onShared={() => setResourcesRefresh((p) => p + 1)}
+        />
+      )}
     </ResponsiveLayout>
   );
 }

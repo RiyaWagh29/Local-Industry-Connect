@@ -33,6 +33,28 @@ const userSchema = mongoose.Schema(
       type: String,
       default: '',
     },
+    goals: {
+      type: String,
+      default: '',
+    },
+    guidance: {
+      type: String,
+      default: '',
+    },
+    company: {
+      type: String,
+      default: '',
+    },
+    experience: {
+      type: Number,
+      default: 0,
+    },
+    industries: {
+      type: [String],
+      default: [],
+    },
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     availability: [
       {
         start: { type: Date },

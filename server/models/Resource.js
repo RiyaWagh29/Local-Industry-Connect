@@ -23,6 +23,11 @@ const resourceSchema = mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    community_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Community',
+      default: null,
+    },
     sharedDate: {
       type: Date,
       default: Date.now,

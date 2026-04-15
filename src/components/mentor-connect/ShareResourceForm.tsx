@@ -1,17 +1,20 @@
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import { useLanguage } from "@/lib/language-context";
 import { useResources } from "@/lib/resources-context";
 import { useAuth } from "@/lib/auth-context";
-import { X, Share2, Link as LinkIcon, FileText, Video as VideoIcon, File as FileIcon, Send } from "lucide-react";
+import { X, Share2, Link as LinkIcon, FileText, Video as VideoIcon, File as FileIcon, Send, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { LocalizedString } from "@/lib/types";
 
 interface ShareResourceFormProps {
   onClose: () => void;
+  communityId?: string;
+  onShared?: () => void;
 }
 
 type ResourceType = "pdf" | "link" | "video" | "document";
 
-export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
+export function ShareResourceForm({ onClose, communityId, onShared }: ShareResourceFormProps) {
   const { t } = useLanguage();
   const { addResource } = useResources();
   const { user } = useAuth();
@@ -19,6 +22,7 @@ export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [url, setUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [type, setType] = useState<ResourceType>("link");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -27,7 +31,7 @@ export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
     const errs: Record<string, string> = {};
     if (!title.trim()) errs.title = t("resource.share.titleRequired") || "Title is required";
     if (!description.trim()) errs.desc = t("resource.share.descRequired") || "Description is required";
-    if (!url.trim()) errs.url = t("resource.share.urlRequired") || "URL is required";
+    if (!url.trim() && !selectedFile) errs.url = t("resource.share.urlRequired") || "URL or file is required";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -43,17 +47,31 @@ export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
       const localizedDesc = { en: description.trim(), mr: description.trim() };
       const authorName = user?.name || "Mentor";
 
-      await addResource(
-        { 
-          title: localizedTitle as any, 
-          description: localizedDesc as any, 
-          url: url.trim(), 
-          type 
-        },
-        authorName
-      );
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("title", JSON.stringify(localizedTitle));
+        formData.append("description", JSON.stringify(localizedDesc));
+        formData.append("type", type);
+        formData.append("url", url.trim());
+        if (communityId) formData.append("communityId", communityId);
+        formData.append("file", selectedFile);
+
+        await addResource(formData, authorName);
+      } else {
+        await addResource(
+          {
+            title: localizedTitle as LocalizedString,
+            description: localizedDesc as LocalizedString,
+            url: url.trim(),
+            type,
+            communityId
+          },
+          authorName
+        );
+      }
       
       toast.success(t("resource.share.success") || "Resource shared successfully!");
+      onShared?.();
       onClose();
     } catch (error) {
        console.error('Error sharing resource:', error);
@@ -63,7 +81,7 @@ export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
     }
   };
 
-  const typeOptions: { value: ResourceType; label: string; icon: any }[] = [
+  const typeOptions: { value: ResourceType; label: string; icon: ComponentType<{ size?: number }> }[] = [
     { value: "link", label: t("resource.share.typeLink") || "Link", icon: LinkIcon },
     { value: "pdf", label: t("resource.share.typePdf") || "PDF", icon: FileText },
     { value: "video", label: t("resource.share.typeVideo") || "Video", icon: VideoIcon },
@@ -169,6 +187,30 @@ export function ShareResourceForm({ onClose }: ShareResourceFormProps) {
                   id="resource-url"
                 />
                 {errors.url && <p className="text-caption text-destructive font-medium ml-1">{errors.url}</p>}
+
+                <label className="mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-dashed border-border bg-muted/20 text-caption font-bold text-muted-foreground hover:border-mentor hover:text-mentor transition-all cursor-pointer">
+                  <Upload size={16} />
+                  {selectedFile ? selectedFile.name : "Upload from gallery, files, laptop, or mobile"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.mp4,.mov,.avi"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setSelectedFile(file);
+                      setErrors((p) => ({ ...p, url: "" }));
+                    }}
+                  />
+                </label>
+                {selectedFile && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="text-caption text-primary font-bold hover:underline"
+                  >
+                    Remove selected file
+                  </button>
+                )}
               </div>
             </div>
           </div>

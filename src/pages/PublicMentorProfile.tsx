@@ -13,18 +13,24 @@ import { Mentor } from "@/lib/types";
 import { toast } from "sonner";
 import { getText } from "@/lib/getText";
 import api from "@/lib/api";
+import { getAvatarUrl } from "@/lib/avatar";
 
 export default function PublicMentorProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { startConversation } = useMessages();
-  const { getMentorById } = useMentors();
+  const { getMentorById, fetchMentors } = useMentors();
+  const { user, refreshUser } = useAuth();
   
   const [mentor, setMentor] = useState<Mentor | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("about");
   const [following, setFollowing] = useState(false);
+  const [showRating, setShowRating] = useState(false);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchMentor = async () => {
@@ -44,6 +50,12 @@ export default function PublicMentorProfile() {
     };
     fetchMentor();
   }, [id, getMentorById]);
+
+  useEffect(() => {
+    if (mentor?.id && user?.following) {
+      setFollowing(user.following.includes(mentor.id));
+    }
+  }, [mentor?.id, user?.following]);
 
   if (isLoading) {
     return (
@@ -76,16 +88,48 @@ export default function PublicMentorProfile() {
   const bio = getText(mentor.bio);
   const guidance = getText(mentor.guidance);
   const industry = mentor.industry || "General";
+  const mentorAvatar = getAvatarUrl(name, mentor.avatar);
 
   const handleMessage = async () => {
     if (!mentor?.id) return;
     await startConversation({ 
       id: mentor.id, 
       name: getText(mentor.name), 
-      avatar: mentor.avatar,
+      avatar: mentorAvatar,
       role: 'mentor'
     });
     navigate(`/messages/${mentor.id}`);
+  };
+
+  const handleSubmitRating = async () => {
+    if (!mentor?.id) return;
+    if (!following) {
+      toast.error("Follow the mentor before rating");
+      return;
+    }
+    if (ratingValue < 1) {
+      toast.error("Please select a rating");
+      return;
+    }
+    try {
+      setRatingSubmitting(true);
+      const res = await api.post(`/users/mentors/${mentor.id}/rate`, { score: ratingValue });
+      if (res.data?.success) {
+        setMentor(prev => prev ? { ...prev, averageRating: res.data.data?.averageRating ?? prev.averageRating } : prev);
+        await fetchMentors();
+        toast.success("Thanks for rating!");
+        setShowRating(false);
+      } else {
+        toast.error(res.data?.message || "Rating failed");
+      }
+    } catch (e: unknown) {
+      const message = typeof e === "object" && e !== null && "response" in e
+        ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined;
+      toast.error(message || "Rating failed");
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   return (
@@ -110,7 +154,7 @@ export default function PublicMentorProfile() {
               <div className="flex flex-col md:flex-row md:items-end gap-6">
                 <div className="relative">
                   <img 
-                    src={mentor.avatar} 
+                    src={mentorAvatar} 
                     alt={name} 
                     className="w-32 h-32 rounded-3xl border-4 border-card object-cover shadow-xl" 
                   />
@@ -138,6 +182,19 @@ export default function PublicMentorProfile() {
                 >
                   <Calendar size={20} />
                   Book Meeting
+                </button>
+                <button 
+                  onClick={() => {
+                    if (!following) {
+                      toast.error("Follow the mentor before rating");
+                      return;
+                    }
+                    setShowRating(true);
+                  }}
+                  className={`btn-outline border-transparent ${following ? "bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500 hover:text-white" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
+                >
+                  <Star size={20} />
+                  Give Rating
                 </button>
               </div>
             </div>
@@ -248,6 +305,7 @@ export default function PublicMentorProfile() {
                               if (res.data?.success) {
                                 toast.success("Meeting requested! Wait for mentor to approve.");
                                 timeInput.value = "";
+                                setActiveTab("about");
                               } else {
                                 toast.error(res.data?.message || "Failed to schedule");
                               }
@@ -265,9 +323,20 @@ export default function PublicMentorProfile() {
           </div>
 
           <button 
-            onClick={() => {
-              setFollowing(!following);
-              toast.success(following ? "Unfollowed" : "Followed successfully!");
+            onClick={async () => {
+              if (!mentor?.id) return;
+              try {
+                const res = await api.post(`/users/mentors/${mentor.id}/follow`);
+                if (res.data?.success) {
+                  const data = res.data.data;
+                  setMentor(prev => prev ? { ...prev, followers: data.followersCount } : prev);
+                  await refreshUser();
+                  await fetchMentors();
+                  toast.success(res.data.message);
+                }
+              } catch (e) {
+                toast.error("Complete your profile or login to follow mentors!");
+              }
             }}
             className={`w-full mt-8 py-5 rounded-3xl text-body font-extrabold flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.98] ${
               following 
@@ -280,6 +349,60 @@ export default function PublicMentorProfile() {
           </button>
         </div>
       </div>
+      {showRating && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-h3 font-bold text-foreground">Rate {name}</h3>
+              <button
+                onClick={() => setShowRating(false)}
+                className="w-9 h-9 rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-body text-muted-foreground mt-2">
+              Select a rating from 1 to 5 stars.
+            </p>
+
+            <div className="flex items-center justify-center gap-2 my-6">
+              {[1, 2, 3, 4, 5].map((star) => {
+                const active = hovered ? star <= hovered : star <= ratingValue;
+                return (
+                  <button
+                    key={star}
+                    onMouseEnter={() => setHovered(star)}
+                    onMouseLeave={() => setHovered(0)}
+                    onClick={() => setRatingValue(star)}
+                    disabled={ratingSubmitting}
+                    className={`p-2 rounded-xl transition-all ${active ? "text-yellow-500" : "text-muted-foreground"} ${ratingSubmitting ? "opacity-50 cursor-not-allowed" : "hover:scale-110"}`}
+                  >
+                    <Star size={28} className={active ? "fill-yellow-500" : ""} />
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRating(false)}
+                className="flex-1 py-3 rounded-2xl border border-border text-muted-foreground font-bold hover:bg-muted/50 transition-all"
+                disabled={ratingSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitRating}
+                className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground font-bold hover:brightness-110 transition-all"
+                disabled={ratingSubmitting}
+              >
+                {ratingSubmitting ? "Submitting..." : "Submit Rating"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </ResponsiveLayout>
   );
 }

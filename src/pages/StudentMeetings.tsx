@@ -5,6 +5,7 @@ import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Calendar, Clock, MessageSquare, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import api from "@/lib/api";
 
 export default function StudentMeetings() {
   const { user } = useAuth();
@@ -12,18 +13,16 @@ export default function StudentMeetings() {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected" | "rescheduled" | "completed">("all");
 
   useEffect(() => {
     const fetchMeetings = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/student/${user?.id}`, {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setMeetings(data.data);
+        const res = await api.get(`/meetings/student/${user?.id}`);
+        const data = res.data;
+        if (data?.success) {
+          setMeetings(data.data || []);
         }
       } catch (e) {
         console.error(e);
@@ -41,7 +40,31 @@ export default function StudentMeetings() {
         <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
           <div className="flex flex-col space-y-2">
             <h1 className="text-h2 font-bold text-foreground">{t("nav.meetings") || "My Meetings"}</h1>
-            <p className="text-body text-muted-foreground">Track your mentorship sessions and requests.</p>
+            <p className="text-body text-muted-foreground">Track your meeting requests, approvals, and history.</p>
+          </div>
+
+          {/* Status Filters */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {[
+              { key: "all", label: "All" },
+              { key: "pending", label: "Requested" },
+              { key: "accepted", label: "Approved" },
+              { key: "rejected", label: "Rejected" },
+              { key: "rescheduled", label: "Rescheduled" },
+              { key: "completed", label: "Completed" },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setStatusFilter(tab.key as any)}
+                className={`px-4 py-2 rounded-full text-caption font-bold transition-all border ${
+                  statusFilter === tab.key
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted/60"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {isLoading ? (
@@ -52,7 +75,9 @@ export default function StudentMeetings() {
             </div>
           ) : meetings.length > 0 ? (
             <div className="space-y-4">
-              {meetings.map((m) => (
+              {meetings
+                .filter((m) => statusFilter === "all" ? true : m.status === statusFilter)
+                .map((m) => (
                 <div key={m._id} className="bg-card border border-border p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-lg transition-all">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -70,6 +95,7 @@ export default function StudentMeetings() {
                   <div className="flex items-center gap-4">
                     <span className={`px-4 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${
                       m.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600' : 
+                      m.status === 'completed' ? 'bg-primary/10 text-primary' :
                       m.status === 'pending' ? 'bg-amber-500/10 text-amber-600' : 
                       'bg-destructive/10 text-destructive'
                     }`}>
@@ -77,13 +103,18 @@ export default function StudentMeetings() {
                     </span>
                     
                     {m.status === 'accepted' && (
-                       <button 
-                         onClick={() => navigate(`/messages/${m.mentor_id?._id}`)}
-                         className="p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm"
-                         title="Message Mentor"
-                       >
-                         <MessageSquare size={18} />
-                       </button>
+                      <>
+                        <span className="text-[11px] text-muted-foreground font-medium hidden sm:block">
+                          Request accepted. You can message your mentor now.
+                        </span>
+                        <button 
+                          onClick={() => navigate(`/messages/${m.mentor_id?._id}`)}
+                          className="p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm"
+                          title="Message Mentor"
+                        >
+                          <MessageSquare size={18} />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

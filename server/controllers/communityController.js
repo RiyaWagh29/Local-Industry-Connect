@@ -25,7 +25,8 @@ export const createCommunity = async (req, res) => {
 // @access  Private
 export const getMentorCommunities = async (req, res) => {
   try {
-    const communities = await Community.find({ mentor_id: req.params.mentorId });
+    const communities = await Community.find({ mentor_id: req.params.mentorId })
+      .populate('members', 'name avatar role createdAt');
     res.json({ success: true, data: communities });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -58,7 +59,7 @@ export const joinCommunity = async (req, res) => {
 
     community.members.push(req.user._id);
     await community.save();
-    res.json({ success: true, message: 'Joined successfully' });
+    res.json({ success: true, message: 'Joined successfully', membersCount: community.members.length });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import AuditLog from '../models/AuditLog.js';
+import Community from '../models/Community.js';
 import MetricsService from '../services/MetricsService.js';
 
 // @desc    Get logged in user profile
@@ -7,7 +8,11 @@ export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
     if (user) {
-      res.json({ success: true, message: 'Profile fetched', data: user });
+      // Adding followers count or array length to the payload
+      const userData = user.toObject();
+      userData.followersCount = userData.followers ? userData.followers.length : 0;
+      userData.followingCount = userData.following ? userData.following.length : 0;
+      res.json({ success: true, message: 'Profile fetched', data: userData });
     } else {
       res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -18,26 +23,29 @@ export const getUserProfile = async (req, res) => {
 
 export const getLeaderboard = async (req, res) => {
   try {
-    const mentors = await User.find({ role: "mentor" });
+    const mentors = await User.find({ role: "mentor" }).lean();
 
     const leaderboard = mentors
       .map((mentor) => {
         const ratings = mentor.ratings || [];
-
-        const avg =
-          ratings.length > 0
-            ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
-            : 0;
+        const avg = typeof mentor.averageRating === "number"
+          ? mentor.averageRating
+          : (ratings.length > 0
+              ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
+              : 0);
 
         return {
-          id: mentor._id,
+          _id: mentor._id,
           name: mentor.name,
-          email: mentor.email,
+          role: mentor.role,
+          company: mentor.company || "",
+          industry: Array.isArray(mentor.industries) ? mentor.industries[0] : mentor.industry,
+          avatar: mentor.avatar,
           averageRating: avg,
           totalRatings: ratings.length,
         };
       })
-      .sort((a, b) => b.averageRating - a.averageRating);
+      .sort((a, b) => b.averageRating - a.averageRating || b.totalRatings - a.totalRatings);
 
     res.json({
       success: true,
@@ -59,11 +67,11 @@ export const updateUserProfile = async (req, res) => {
     if (user) {
       user.name = req.body.name || user.name;
       user.email = req.body.email || user.email;
-      user.bio = req.body.bio || user.bio;
-      user.company = req.body.company || user.company;
-      user.experience = req.body.experience || user.experience;
-      user.guidance = req.body.guidance || user.guidance;
-      user.goals = req.body.goals || user.goals;
+      user.bio = req.body.bio !== undefined ? req.body.bio : user.bio;
+      user.company = req.body.company !== undefined ? req.body.company : user.company;
+      user.experience = req.body.experience !== undefined ? req.body.experience : user.experience;
+      user.guidance = req.body.guidance !== undefined ? req.body.guidance : user.guidance;
+      user.goals = req.body.goals !== undefined ? req.body.goals : user.goals;
       user.onboarding_completed = req.body.onboarding_completed ?? user.onboarding_completed;
       user.skills = req.body.skills || user.skills;
       user.industries = req.body.industries || user.industries;
@@ -81,8 +89,18 @@ export const updateUserProfile = async (req, res) => {
 // @desc    Get all mentors
 export const getAllMentors = async (req, res) => {
   try {
-    const mentors = await User.find({ role: 'mentor' }).select('-password');
-    res.json({ success: true, message: 'All Mentors retrieved', data: mentors });
+    const mentors = await User.find({ role: 'mentor' }).select('-password').lean();
+    
+    const mentorsWithCounts = await Promise.all(mentors.map(async (m) => {
+      const communitiesCount = await Community.countDocuments({ mentor_id: m._id });
+      return { 
+        ...m, 
+        communitiesCount, 
+        followersCount: m.followers ? m.followers.length : 0 
+      };
+    }));
+
+    res.json({ success: true, message: 'All Mentors retrieved', data: mentorsWithCounts });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -98,16 +116,70 @@ export const getMatchedMentors = async (req, res) => {
   } catch (error) { res.status(500).json({ success: false }); }
 };
 
+// @desc    Toggle follow a mentor
+export const toggleFollowMentor = async (req, res) => {
+  try {
+    const student = await User.findById(req.user._id);
+    const mentor = await User.findById(req.params.id);
+
+    if (!student || !mentor || mentor.role !== 'mentor') {
+      return res.status(404).json({ success: false, message: 'User or Mentor not found' });
+    }
+
+    const isFollowing = mentor.followers.includes(student._id);
+
+    if (isFollowing) {
+      // Unfollow
+      mentor.followers = mentor.followers.filter(id => id.toString() !== student._id.toString());
+      student.following = student.following.filter(id => id.toString() !== mentor._id.toString());
+    } else {
+      // Follow
+      mentor.followers.push(student._id);
+      student.following.push(mentor._id);
+    }
+
+    await mentor.save();
+    await student.save();
+
+    res.json({
+      success: true,
+      message: isFollowing ? 'Unfollowed successfully' : 'Followed successfully',
+      data: {
+        isFollowing: !isFollowing,
+        followersCount: mentor.followers.length
+      }
+    });
+
+  } catch (error) {
+    console.error("Toggle follow error:", error);
+    res.status(500).json({ success: false, message: 'Server error updating follow status' });
+  }
+};
+
 // @desc    Rate a mentor
 export const rateMentor = async (req, res) => {
   try {
     const { score, feedback } = req.body;
     const mentor = await User.findById(req.params.id);
     if (!mentor || mentor.role !== 'mentor') return res.status(404).json({ success: false, message: 'Mentor not found' });
-    mentor.ratings.push({ student: req.user._id, score: Number(score), feedback });
-    mentor.averageRating = mentor.ratings.reduce((acc, item) => item.score + acc, 0) / mentor.ratings.length;
+    if (!mentor.followers?.some((id) => id.toString() === req.user._id.toString())) {
+      return res.status(403).json({ success: false, message: 'Follow the mentor before rating' });
+    }
+
+    const numericScore = Math.max(1, Math.min(5, Number(score)));
+    const existing = mentor.ratings.find((r) => r.student?.toString() === req.user._id.toString());
+    if (existing) {
+      existing.score = numericScore;
+      if (feedback !== undefined) existing.feedback = feedback;
+    } else {
+      mentor.ratings.push({ student: req.user._id, score: numericScore, feedback });
+    }
+
+    mentor.averageRating = mentor.ratings.length > 0
+      ? mentor.ratings.reduce((acc, item) => item.score + acc, 0) / mentor.ratings.length
+      : 0;
     await mentor.save();
-    res.status(201).json({ success: true, message: 'Rating added', data: { averageRating: mentor.averageRating } });
+    res.status(201).json({ success: true, message: 'Rating saved', data: { averageRating: mentor.averageRating } });
   } catch (error) { res.status(500).json({ success: false }); }
 };
 

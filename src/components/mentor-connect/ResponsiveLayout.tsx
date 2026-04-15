@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { BottomNav, DesktopSidebar } from "./BottomNav";
+import { BottomNav, DesktopSidebar, MobileTopNav } from "./BottomNav";
 import { useAuth } from "@/lib/auth-context";
 
 interface ResponsiveLayoutProps {
@@ -18,7 +18,10 @@ export function ResponsiveLayout({ children, hideNav }: ResponsiveLayoutProps) {
     <div className="min-h-screen bg-background">
       <DesktopSidebar />
       <div className="lg:ml-64">
-        {children}
+        <MobileTopNav />
+        <div className="pt-14 lg:pt-0">
+          {children}
+        </div>
       </div>
       <BottomNav />
     </div>

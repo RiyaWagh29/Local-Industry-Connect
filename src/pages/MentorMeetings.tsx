@@ -5,6 +5,7 @@ import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { Calendar, Clock, CheckCircle, XCircle, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import api from "@/lib/api";
 
 export default function MentorMeetings() {
   const { user } = useAuth();
@@ -16,13 +17,10 @@ export default function MentorMeetings() {
   const fetchMeetings = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/mentor/${user?.id}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMeetings(data.data);
+      const res = await api.get(`/meetings/mentor/${user?.id}`);
+      const data = res.data;
+      if (data?.success) {
+        setMeetings(data.data || []);
       }
     } catch (e) {
       console.error(e);
@@ -38,18 +36,25 @@ export default function MentorMeetings() {
 
   const handleStatusUpdate = async (meetingId: string, status: string) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`https://local-industry-connect.onrender.com/api/meetings/${meetingId}`, {
-        method: "PUT",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ status })
-      });
-      const data = await res.json();
-      if (data.success) {
+      const res = await api.put(`/meetings/${meetingId}`, { status });
+      const data = res.data;
+      if (data?.success) {
         toast.success(`Meeting ${status} successfully!`);
+        if (status === "accepted") {
+          const meeting = meetings.find((m) => m._id === meetingId);
+          const studentId = meeting?.student_id?._id;
+          const when = meeting?.date_time ? new Date(meeting.date_time).toLocaleString() : "the scheduled time";
+          if (studentId) {
+            try {
+              await api.post("/messages", {
+                recipientId: studentId,
+                text: `Hi! Your meeting request has been accepted. Let's connect at ${when}.`
+              });
+            } catch (e) {
+              console.error("Auto message failed", e);
+            }
+          }
+        }
         fetchMeetings();
       } else {
         toast.error(data.message || "Failed to update status");
@@ -110,7 +115,9 @@ export default function MentorMeetings() {
                     ) : (
                       <div className="flex items-center gap-4">
                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest ${
-                          m.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive'
+                          m.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600' : 
+                          m.status === 'completed' ? 'bg-primary/10 text-primary' :
+                          'bg-destructive/10 text-destructive'
                         }`}>
                           {m.status}
                         </span>
@@ -118,6 +125,14 @@ export default function MentorMeetings() {
                            <div className="text-v-small font-bold text-muted-foreground italic max-w-[150px] leading-tight">
                               Please share the link via chat!
                            </div>
+                        )}
+                        {m.status === 'accepted' && (
+                          <button 
+                            onClick={() => handleStatusUpdate(m._id, "completed")}
+                            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-caption font-bold hover:scale-105 transition-all shadow-lg shadow-primary/20"
+                          >
+                            Meeting Done
+                          </button>
                         )}
                         <button 
                           onClick={() => navigate(`/messages/${m.student_id?._id}`)}
