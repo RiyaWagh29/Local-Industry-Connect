@@ -111,9 +111,6 @@ app.get("/health", (req, res) =>
   res.status(200).json({ status: "ready", timestamp: new Date() })
 );
 
-<<<<<<< HEAD
-const PORT = process.env.PORT || 8080;
-=======
 app.get("/", (req, res) => {
   res.status(200).json({
     status: "ok",
@@ -122,7 +119,6 @@ app.get("/", (req, res) => {
 });
 
 const PORT = config.port;
->>>>>>> 0899db9 (did)
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
