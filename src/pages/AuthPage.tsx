@@ -4,12 +4,12 @@ import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { Logo } from "@/components/mentor-connect/Logo";
 import { LanguageToggle } from "@/components/mentor-connect/LanguageToggle";
-import { GraduationCap, Building2, Eye, EyeOff, ArrowLeft, LayoutDashboard } from "lucide-react";
+import { GraduationCap, Building2, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { getHomeRoute } from "@/lib/navigation";
 
 type AuthTab = "signin" | "signup";
-type RoleTab = "student" | "mentor" | "admin";
+type RoleTab = "student" | "mentor";
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -18,7 +18,9 @@ export default function AuthPage() {
   const { t } = useLanguage();
 
   const [authTab, setAuthTab] = useState<AuthTab>((searchParams.get("mode") as AuthTab) || "signin");
-  const [roleTab, setRoleTab] = useState<RoleTab>((contextRole as RoleTab) || "student");
+  const [roleTab, setRoleTab] = useState(
+    contextRole === "mentor" ? "mentor" : "student"
+  );
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -177,19 +179,6 @@ export default function AuthPage() {
                 <Building2 size={24} className={roleTab === "mentor" ? "text-mentor" : "text-muted-foreground"} />
                 <span className={`text-caption font-medium ${roleTab === "mentor" ? "text-mentor" : "text-muted-foreground"}`}>
                   {t("auth.roleMentor")}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRoleTab("admin")}
-                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all col-span-2 ${roleTab === "admin"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground"
-                  }`}
-              >
-                <LayoutDashboard size={24} className={roleTab === "admin" ? "text-primary" : "text-muted-foreground"} />
-                <span className={`text-caption font-medium ${roleTab === "admin" ? "text-primary" : "text-muted-foreground"}`}>
-                  Admin
                 </span>
               </button>
             </div>
