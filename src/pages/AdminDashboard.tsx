@@ -17,6 +17,8 @@ export default function AdminDashboard() {
     email: string;
     role: string;
     isActive?: boolean;
+    linkedinProfile?: string;
+    officeIdCardUrl?: string;
   };
 
   type AdminSession = {
@@ -162,6 +164,27 @@ export default function AdminDashboard() {
                       <div className="flex flex-col">
                         <span className="font-bold text-foreground">{u.name}</span>
                         <span className="text-xs text-muted-foreground">{u.email}</span>
+                        {u.role === "mentor" && (
+                          <div className="mt-2 space-y-2">
+                            {u.linkedinProfile && (
+                              <a
+                                href={u.linkedinProfile}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs text-primary hover:underline break-all"
+                              >
+                                LinkedIn Profile
+                              </a>
+                            )}
+                            {u.officeIdCardUrl && (
+                              <img
+                                src={u.officeIdCardUrl}
+                                alt={`${u.name} office ID`}
+                                className="h-16 w-24 rounded-md object-cover border border-border"
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

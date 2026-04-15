@@ -57,6 +57,14 @@ const userSchema = mongoose.Schema(
       type: String,
       default: '',
     },
+    linkedinProfile: {
+      type: String,
+      default: '',
+    },
+    officeIdCardUrl: {
+      type: String,
+      default: '',
+    },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     availability: [

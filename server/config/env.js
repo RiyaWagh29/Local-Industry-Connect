@@ -11,6 +11,7 @@ export const config = {
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   resourceBucket: process.env.SUPABASE_RESOURCE_BUCKET || 'Resources',
   avatarBucket: process.env.SUPABASE_AVATAR_BUCKET || 'Profile photos',
+  verificationBucket: process.env.SUPABASE_VERIFICATION_BUCKET || 'Verification documents',
   corsOrigins: (process.env.CORS_ORIGIN || '')
     .split(',')
     .map((origin) => origin.trim())

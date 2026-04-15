@@ -139,7 +139,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (userData: any, password: string) => {
     setIsLoading(true);
     try {
-      const res = await api.post("/auth/register", { ...userData, password });
+      const payload = userData instanceof FormData
+        ? userData
+        : { ...userData, password };
+
+      if (payload instanceof FormData) {
+        payload.set("password", password);
+      }
+
+      const res = await api.post("/auth/register", payload, payload instanceof FormData ? {
+        headers: { "Content-Type": "multipart/form-data" },
+      } : undefined);
       const { token, user: newUser } = res.data || {};
 
       if (token && newUser) {

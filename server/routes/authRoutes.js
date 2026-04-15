@@ -2,11 +2,13 @@ import express from 'express';
 import { check } from 'express-validator';
 import { registerUser, loginUser, refreshToken } from '../controllers/authController.js';
 import { validateRequest } from '../middleware/validateMiddleware.js';
+import upload from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
 router.post(
   '/register',
+  upload.single('officeIdCard'),
   [
     check('name', 'Name is required').not().isEmpty(),
     check('email', 'Please include a valid email').isEmail(),

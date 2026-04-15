@@ -24,6 +24,8 @@ export default function AuthPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [linkedinProfile, setLinkedinProfile] = useState("");
+  const [officeIdCard, setOfficeIdCard] = useState<File | null>(null);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,6 +48,8 @@ export default function AuthPage() {
     else if (!/\S+@\S+\.\S+/.test(email.trim())) errs.email = t("auth.invalidEmail");
     if (!password) errs.password = t("auth.passwordRequired");
     else if (password.length < 6) errs.password = t("auth.passwordShort");
+    if (authTab === "signup" && roleTab === "mentor" && !linkedinProfile.trim()) errs.linkedinProfile = "LinkedIn profile link is required";
+    if (authTab === "signup" && roleTab === "mentor" && !officeIdCard) errs.officeIdCard = "Office ID card photo is required";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -81,13 +85,29 @@ export default function AuthPage() {
       } else {
         setRole(roleTab);
         console.log("Signing up with:", cleanEmail);
-        const result = await signUp({
-          name: name.trim(),
-          email: cleanEmail,
-          role: roleTab,
-          industries: [],
-          skills: [],
-        }, password);
+        const signupPayload = roleTab === "mentor"
+          ? (() => {
+              const formData = new FormData();
+              formData.append("name", name.trim());
+              formData.append("email", cleanEmail);
+              formData.append("role", roleTab);
+              formData.append("industries", JSON.stringify([]));
+              formData.append("skills", JSON.stringify([]));
+              formData.append("linkedinProfile", linkedinProfile.trim());
+              if (officeIdCard) {
+                formData.append("officeIdCard", officeIdCard);
+              }
+              return formData;
+            })()
+          : {
+              name: name.trim(),
+              email: cleanEmail,
+              role: roleTab,
+              industries: [],
+              skills: [],
+            };
+
+        const result = await signUp(signupPayload, password);
 
         if (result.error) {
           if (result.error.status === 429 || result.error.message.includes("rate limit")) {
@@ -181,6 +201,37 @@ export default function AuthPage() {
                   {t("auth.roleMentor")}
                 </span>
               </button>
+            </div>
+          )}
+
+          {authTab === "signup" && roleTab === "mentor" && (
+            <div className="space-y-4 rounded-xl border border-border bg-muted/30 p-4">
+              <div>
+                <input
+                  type="url"
+                  value={linkedinProfile}
+                  onChange={(e) => { setLinkedinProfile(e.target.value); clearErrors("linkedinProfile"); }}
+                  placeholder="LinkedIn profile link"
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.linkedinProfile ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
+                />
+                {errors.linkedinProfile && <p className="text-caption text-destructive mt-1">{errors.linkedinProfile}</p>}
+              </div>
+
+              <div>
+                <label className={`block w-full px-4 py-3 rounded-lg border ${errors.officeIdCard ? "border-destructive" : "border-input"} bg-background text-body text-foreground cursor-pointer`}>
+                  <span>{officeIdCard ? officeIdCard.name : "Upload office ID card photo"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      setOfficeIdCard(e.target.files?.[0] || null);
+                      clearErrors("officeIdCard");
+                    }}
+                  />
+                </label>
+                {errors.officeIdCard && <p className="text-caption text-destructive mt-1">{errors.officeIdCard}</p>}
+              </div>
             </div>
           )}
 

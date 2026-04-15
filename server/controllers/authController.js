@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { config } from '../config/env.js';
+import { uploadBufferToSupabase } from '../services/storageService.js';
 
 const ADMIN_EMAIL = 'admin@gmail.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -24,16 +26,34 @@ const generateToken = (id) => {
 // @access  Public
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, skills, interests, bio, availability } = req.body;
+    const { name, email, password, role, skills, interests, bio, availability, linkedinProfile } = req.body;
 
     if (role === 'admin') {
       return res.status(403).json({ success: false, message: 'Admin account creation is disabled' });
+    }
+
+    if (role === 'mentor') {
+      if (!String(linkedinProfile || '').trim()) {
+        return res.status(400).json({ success: false, message: 'LinkedIn profile link is required for mentors' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'Office ID card photo is required for mentors' });
+      }
     }
 
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
+
+    const uploadedOfficeId = req.file
+      ? await uploadBufferToSupabase({
+          bucket: config.verificationBucket,
+          file: req.file,
+          folder: 'office-id-cards',
+        })
+      : null;
 
     const user = await User.create({
       name,
@@ -44,7 +64,9 @@ export const registerUser = async (req, res) => {
       skills: skills || [],
       interests: interests || [],
       bio: bio || '',
-      availability: availability || []
+      availability: availability || [],
+      linkedinProfile: role === 'mentor' ? String(linkedinProfile || '').trim() : '',
+      officeIdCardUrl: uploadedOfficeId?.publicUrl || '',
     });
 
     if (user) {
