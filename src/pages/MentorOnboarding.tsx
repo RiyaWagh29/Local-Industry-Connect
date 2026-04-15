@@ -20,6 +20,7 @@ export default function MentorOnboarding() {
   // Start at step 2 because account info (Step 1) was done at registration
   const [step, setStep] = useState(2);
   const [selectedIndustry, setSelectedIndustry] = useState("");
+  const [customIndustry, setCustomIndustry] = useState("");
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [experience, setExperience] = useState(5);
@@ -57,7 +58,7 @@ export default function MentorOnboarding() {
   const validateStep = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (step === 2) {
-      if (!selectedIndustry) newErrors.industry = t("mentorOnboard.industryError") || "Please select an industry";
+      if (!selectedIndustry && !customIndustry.trim()) newErrors.industry = t("mentorOnboard.industryError") || "Please select an industry";
       if (!role.trim()) newErrors.role = t("mentorOnboard.roleError") || "Professional role is required";
       if (!company.trim()) newErrors.company = t("mentorOnboard.companyError") || "Company name is required";
     }
@@ -73,8 +74,9 @@ export default function MentorOnboarding() {
   const handleFinish = async () => {
     if (!validateStep()) return;
     try {
+      const finalIndustry = customIndustry.trim() || selectedIndustry;
       const formData = new FormData();
-      formData.append("industries", JSON.stringify([selectedIndustry]));
+      formData.append("industries", JSON.stringify([finalIndustry]));
       formData.append("skills", JSON.stringify(skills));
       formData.append("company", company);
       formData.append("experience", String(experience));
@@ -155,6 +157,15 @@ export default function MentorOnboarding() {
                       <IndustryChip key={ind} label={ind} selected={selectedIndustry === ind} variant="mentor" onPress={() => { setSelectedIndustry(ind); setErrors(p => ({ ...p, industry: "" })); }} />
                     ))}
                   </div>
+                  <input
+                    value={customIndustry}
+                    onChange={(e) => {
+                      setCustomIndustry(e.target.value);
+                      setErrors((p) => ({ ...p, industry: "" }));
+                    }}
+                    placeholder="If your domain is not listed, type it here"
+                    className={inputClass(errors.industry)}
+                  />
                   {errors.industry && <p className="text-caption text-destructive font-medium ml-1">{errors.industry}</p>}
                 </div>
                 
