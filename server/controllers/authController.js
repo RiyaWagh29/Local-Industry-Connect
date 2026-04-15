@@ -47,14 +47,6 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    const uploadedOfficeId = req.file
-      ? await uploadBufferToSupabase({
-          bucket: config.verificationBucket,
-          file: req.file,
-          folder: 'office-id-cards',
-        })
-      : null;
-
     const user = await User.create({
       name,
       email,
@@ -66,23 +58,38 @@ export const registerUser = async (req, res) => {
       bio: bio || '',
       availability: availability || [],
       linkedinProfile: role === 'mentor' ? String(linkedinProfile || '').trim() : '',
-      officeIdCardUrl: uploadedOfficeId?.publicUrl || '',
+      officeIdCardUrl: '',
     });
 
     if (user) {
-      // REGISTER
-res.status(201).json({
-  success: true,
-  token: generateToken(user._id),
-  user: {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    isActive: user.isActive,
-    onboarding_completed: user.onboarding_completed || false,
-  },
-});
+      res.status(201).json({
+        success: true,
+        token: generateToken(user._id),
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isActive: user.isActive,
+          onboarding_completed: user.onboarding_completed || false,
+        },
+      });
+
+      if (role === 'mentor' && req.file) {
+        uploadBufferToSupabase({
+          bucket: config.verificationBucket,
+          file: req.file,
+          folder: 'office-id-cards',
+        })
+          .then(async (uploadedOfficeId) => {
+            await User.findByIdAndUpdate(user._id, {
+              officeIdCardUrl: uploadedOfficeId?.publicUrl || '',
+            });
+          })
+          .catch((uploadError) => {
+            console.error('Office ID card upload failed after mentor signup:', uploadError);
+          });
+      }
     } else {
       res.status(400).json({ success: false, message: 'Invalid user data' });
     }
