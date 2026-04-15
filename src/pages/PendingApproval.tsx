@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, Clock3, Search, LogOut, RefreshCw, UserCircle2, Trophy } from "lucide-react";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
 import { useAuth } from "@/lib/auth-context";
+import { getHomeRoute } from "@/lib/navigation";
 import { toast } from "sonner";
 
 export default function PendingApproval() {
@@ -13,6 +14,22 @@ export default function PendingApproval() {
     if (user?.role === "mentor") return "/onboarding/mentor";
     return "/onboarding/student";
   }, [user?.role]);
+
+  useEffect(() => {
+    if (user?.role && user.isActive !== false) {
+      navigate(getHomeRoute(user.role), { replace: true });
+    }
+  }, [navigate, user?.isActive, user?.role]);
+
+  useEffect(() => {
+    if (user?.isActive === false) {
+      const intervalId = window.setInterval(() => {
+        refreshUser().catch(() => {});
+      }, 15000);
+
+      return () => window.clearInterval(intervalId);
+    }
+  }, [refreshUser, user?.isActive]);
 
   const handleRefresh = async () => {
     await refreshUser();

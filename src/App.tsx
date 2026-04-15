@@ -57,6 +57,10 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?
     return <Navigate to={homePath} replace />;
   }
 
+  if (user && user.role !== "admin" && user.isActive !== false && location.pathname === "/pending-approval") {
+    return <Navigate to={getHomeRoute(user.role as any)} replace />;
+  }
+
   if (user && user.role !== "admin" && user.isActive === false) {
     const pendingApprovalAllowedRoutes = [
       "/pending-approval",
