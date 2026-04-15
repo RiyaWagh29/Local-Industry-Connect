@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Shield, Award, Info, Share2, Calendar, Search, X } from "lucide-react";
+import { ArrowLeft, Users, Shield, Award, Info, Share2, Calendar, Search, X, Briefcase, Clock, MapPin } from "lucide-react";
 import { useLanguage } from "@/lib/language-context";
 import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
@@ -31,6 +31,7 @@ export default function CommunityScreen() {
   const [joined, setJoined] = useState(false);
   const [members, setMembers] = useState<MemberPreview[]>([]);
   const [memberQuery, setMemberQuery] = useState("");
+  const [opportunities, setOpportunities] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchCommunity = async () => {
@@ -58,6 +59,18 @@ export default function CommunityScreen() {
               unread: found.unread || 0,
             };
             setCommunity(mapped);
+            try {
+              const oppRes = await api.get("/opportunities", { params: { communityId: found._id || found.id } });
+              const oppData = oppRes.data;
+              if (oppData?.success && Array.isArray(oppData.data)) {
+                setOpportunities(oppData.data);
+              } else {
+                setOpportunities([]);
+              }
+            } catch (oppError) {
+              console.error("Fetch opportunities failed", oppError);
+              setOpportunities([]);
+            }
             if (Array.isArray(found.members)) {
               const mappedMembers: MemberPreview[] = found.members.map((m: any, idx: number) => {
                 const mId = m?._id || m?.id || `${idx}`;
@@ -125,6 +138,7 @@ export default function CommunityScreen() {
     { key: "meetings", label: t("nav.meetings") || "Meetings" },
     { key: "members", label: t("community.tabMembers") || "Members" },
     { key: "resources", label: t("community.tabResources") || "Resources" },
+    { key: "opportunities", label: "Opportunities" },
   ];
 
   const handleJoin = async () => {
@@ -385,6 +399,88 @@ export default function CommunityScreen() {
             {activeTab === "resources" && (
               <div className="animate-fade-in">
                 <SharedResourcesList communityId={community.id} />
+              </div>
+            )}
+
+            {activeTab === "opportunities" && (
+              <div className="animate-fade-in space-y-4">
+                {opportunities.length > 0 ? (
+                  opportunities.map((opportunity) => (
+                    <div key={opportunity._id} className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                        <div className="space-y-3">
+                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                            <Briefcase size={22} />
+                          </div>
+                          <div>
+                            <h3 className="text-h3 font-bold text-foreground capitalize">
+                              {opportunity.type}
+                              {opportunity.role ? ` - ${opportunity.role}` : ""}
+                            </h3>
+                            <p className="text-caption text-muted-foreground">
+                              By {opportunity.mentorId?.name || getLocalized(community.mentorName || { en: "Mentor", mr: "Mentor" })}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                          {opportunity.company}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                        {(opportunity.deadline || opportunity.skillsRequired) && (
+                          <>
+                            {opportunity.deadline && (
+                              <div className="rounded-2xl bg-muted/30 border border-border p-4">
+                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Application Deadline</p>
+                                <p className="text-body font-semibold text-foreground mt-2">{opportunity.deadline}</p>
+                              </div>
+                            )}
+                            {opportunity.skillsRequired && (
+                              <div className="rounded-2xl bg-muted/30 border border-border p-4">
+                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Skills Required</p>
+                                <p className="text-body font-semibold text-foreground mt-2">{opportunity.skillsRequired}</p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {(opportunity.date || opportunity.time || opportunity.place) && (
+                          <>
+                            {opportunity.date && (
+                              <div className="rounded-2xl bg-muted/30 border border-border p-4">
+                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Date</p>
+                                <p className="text-body font-semibold text-foreground mt-2">{opportunity.date}</p>
+                              </div>
+                            )}
+                            {opportunity.time && (
+                              <div className="rounded-2xl bg-muted/30 border border-border p-4 flex items-center gap-2">
+                                <Clock size={16} className="text-primary" />
+                                <div>
+                                  <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Time</p>
+                                  <p className="text-body font-semibold text-foreground mt-1">{opportunity.time}</p>
+                                </div>
+                              </div>
+                            )}
+                            {opportunity.place && (
+                              <div className="rounded-2xl bg-muted/30 border border-border p-4 flex items-center gap-2 md:col-span-2">
+                                <MapPin size={16} className="text-primary" />
+                                <div>
+                                  <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Place</p>
+                                  <p className="text-body font-semibold text-foreground mt-1">{opportunity.place}</p>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-20 text-center border border-dashed border-border rounded-3xl bg-muted/20">
+                    <p className="text-muted-foreground font-medium">No opportunities posted in this community yet</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

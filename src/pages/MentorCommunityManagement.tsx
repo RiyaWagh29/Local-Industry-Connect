@@ -3,7 +3,7 @@ import { ChatSection } from "@/components/mentor-connect/ChatSection";
 import { SharedResourcesList } from "@/components/mentor-connect/SharedResourcesList";
 import { ShareResourceForm } from "@/components/mentor-connect/ShareResourceForm";
 import { ResponsiveLayout } from "@/components/mentor-connect/ResponsiveLayout";
-import { Settings, Users, Upload, Plus, ShieldCheck, Award, Calendar, ArrowLeft } from "lucide-react";
+import { Settings, Users, Upload, Plus, ShieldCheck, Award, Calendar, ArrowLeft, Briefcase, Clock, MapPin } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLanguage } from "@/lib/language-context";
 import { toast } from "sonner";
@@ -22,6 +22,17 @@ export default function MentorCommunityManagement() {
   const [newComm, setNewComm] = useState({ name: "", description: "" });
   const [meetings, setMeetings] = useState<any[]>([]);
   const [resourcesRefresh, setResourcesRefresh] = useState(0);
+  const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [opportunityType, setOpportunityType] = useState("job");
+  const [opportunityForm, setOpportunityForm] = useState({
+    role: "",
+    company: "",
+    deadline: "",
+    skillsRequired: "",
+    date: "",
+    time: "",
+    place: "",
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,12 +56,68 @@ export default function MentorCommunityManagement() {
         if (meetData.success) {
           setMeetings(meetData.data);
         }
+
+        if (activeCommunity?._id || activeCommunity?.id) {
+          const oppRes = await api.get("/opportunities", {
+            params: { communityId: activeCommunity?._id || activeCommunity?.id }
+          });
+          const oppData = oppRes.data;
+          if (oppData?.success && Array.isArray(oppData.data)) {
+            setOpportunities(oppData.data);
+          } else {
+            setOpportunities([]);
+          }
+        }
       } catch (e) { 
         console.error("Fetch data error:", e);
       }
     };
     if (user?.id) fetchData();
-  }, [user?.id]);
+  }, [user?.id, activeCommunity?._id, activeCommunity?.id]);
+
+  const resetOpportunityForm = () => {
+    setOpportunityType("job");
+    setOpportunityForm({
+      role: "",
+      company: "",
+      deadline: "",
+      skillsRequired: "",
+      date: "",
+      time: "",
+      place: "",
+    });
+  };
+
+  const handleOpportunitySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const communityId = activeCommunity?._id || activeCommunity?.id;
+    if (!communityId) return toast.error("Select a community first");
+
+    try {
+      const payload = {
+        communityId,
+        type: opportunityType,
+        company: opportunityForm.company,
+        role: opportunityType === "job" || opportunityType === "internship" ? opportunityForm.role : "",
+        deadline: opportunityType === "job" || opportunityType === "internship" ? opportunityForm.deadline : "",
+        skillsRequired: opportunityType === "job" || opportunityType === "internship" ? opportunityForm.skillsRequired : "",
+        date: opportunityType === "workshop" || opportunityType === "field visit" || opportunityType === "industry visit" ? opportunityForm.date : "",
+        time: opportunityType === "workshop" || opportunityType === "field visit" || opportunityType === "industry visit" ? opportunityForm.time : "",
+        place: opportunityType === "workshop" || opportunityType === "field visit" || opportunityType === "industry visit" ? opportunityForm.place : "",
+      };
+
+      const res = await api.post("/opportunities", payload);
+      if (res.data?.success) {
+        toast.success("Opportunity posted successfully");
+        setOpportunities((prev) => [res.data.data, ...prev]);
+        resetOpportunityForm();
+      } else {
+        toast.error(res.data?.message || "Failed to post opportunity");
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to post opportunity");
+    }
+  };
 
   const handleCreateCommunity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,6 +282,7 @@ export default function MentorCommunityManagement() {
     { key: "meetings", label: t("nav.meetings") || "Meetings" },
     { key: "members", label: t("mentor.community.tabMembers") || "Members" },
     { key: "shared resources", label: t("mentor.community.tabResources") || "Shared Resources" },
+    { key: "opportunities", label: "Opportunities" },
   ];
 
 
@@ -370,6 +438,166 @@ export default function MentorCommunityManagement() {
                     communityId={activeCommunity?._id || activeCommunity?.id}
                     refreshToken={resourcesRefresh}
                   />
+                </div>
+              </div>
+            )}
+
+            {activeTab === "opportunities" && (
+              <div className="animate-fade-in space-y-8">
+                <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                  <div className="space-y-2 mb-6">
+                    <h2 className="text-h3 font-bold text-foreground">Post Opportunity</h2>
+                    <p className="text-caption text-muted-foreground">Share jobs, internships, workshops, field visits, or industry visits with your community.</p>
+                  </div>
+
+                  <form onSubmit={handleOpportunitySubmit} className="space-y-4">
+                    <select
+                      value={opportunityType}
+                      onChange={(e) => setOpportunityType(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl border border-border bg-background text-foreground"
+                    >
+                      <option value="job">Job</option>
+                      <option value="internship">Internship</option>
+                      <option value="workshop">Workshop</option>
+                      <option value="field visit">Field Visit</option>
+                      <option value="industry visit">Industry Visit</option>
+                    </select>
+
+                    {(opportunityType === "job" || opportunityType === "internship") ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          value={opportunityForm.role}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, role: e.target.value }))}
+                          placeholder={opportunityType === "job" ? "Job role" : "Internship role"}
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                        <input
+                          value={opportunityForm.company}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, company: e.target.value }))}
+                          placeholder="Company name"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                        <input
+                          value={opportunityForm.deadline}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, deadline: e.target.value }))}
+                          placeholder="Application deadline"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                        <input
+                          value={opportunityForm.skillsRequired}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, skillsRequired: e.target.value }))}
+                          placeholder="Skills required"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          value={opportunityForm.company}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, company: e.target.value }))}
+                          placeholder="Company name"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                        <input
+                          value={opportunityForm.date}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, date: e.target.value }))}
+                          placeholder="Date"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                        <input
+                          value={opportunityForm.time}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, time: e.target.value }))}
+                          placeholder="Time of visit"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                        <input
+                          value={opportunityForm.place}
+                          onChange={(e) => setOpportunityForm((prev) => ({ ...prev, place: e.target.value }))}
+                          placeholder="Place"
+                          className="w-full px-4 py-3 rounded-2xl border border-border bg-background"
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="px-6 py-3 rounded-2xl bg-mentor text-mentor-foreground font-bold"
+                    >
+                      Post Opportunity
+                    </button>
+                  </form>
+                </div>
+
+                <div className="space-y-4">
+                  <h2 className="text-h3 font-bold text-foreground">Posted Opportunities</h2>
+                  {opportunities.length > 0 ? (
+                    opportunities.map((opportunity) => (
+                      <div key={opportunity._id} className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                          <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                              <Briefcase size={22} />
+                            </div>
+                            <div>
+                              <h3 className="text-h3 font-bold text-foreground capitalize">
+                                {opportunity.type}
+                                {opportunity.role ? ` - ${opportunity.role}` : ""}
+                              </h3>
+                              <p className="text-caption text-muted-foreground">
+                                {opportunity.company}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-full bg-mentor/10 text-mentor text-[10px] font-bold uppercase tracking-wider">
+                            Live
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                          {opportunity.deadline && (
+                            <div className="rounded-2xl bg-muted/30 border border-border p-4">
+                              <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Application Deadline</p>
+                              <p className="text-body font-semibold text-foreground mt-2">{opportunity.deadline}</p>
+                            </div>
+                          )}
+                          {opportunity.skillsRequired && (
+                            <div className="rounded-2xl bg-muted/30 border border-border p-4">
+                              <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Skills Required</p>
+                              <p className="text-body font-semibold text-foreground mt-2">{opportunity.skillsRequired}</p>
+                            </div>
+                          )}
+                          {opportunity.date && (
+                            <div className="rounded-2xl bg-muted/30 border border-border p-4">
+                              <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Date</p>
+                              <p className="text-body font-semibold text-foreground mt-2">{opportunity.date}</p>
+                            </div>
+                          )}
+                          {opportunity.time && (
+                            <div className="rounded-2xl bg-muted/30 border border-border p-4 flex items-center gap-2">
+                              <Clock size={16} className="text-primary" />
+                              <div>
+                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Time</p>
+                                <p className="text-body font-semibold text-foreground mt-1">{opportunity.time}</p>
+                              </div>
+                            </div>
+                          )}
+                          {opportunity.place && (
+                            <div className="rounded-2xl bg-muted/30 border border-border p-4 flex items-center gap-2 md:col-span-2">
+                              <MapPin size={16} className="text-primary" />
+                              <div>
+                                <p className="text-caption font-bold text-muted-foreground uppercase tracking-wider">Place</p>
+                                <p className="text-body font-semibold text-foreground mt-1">{opportunity.place}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-20 text-center border border-dashed border-border rounded-3xl bg-muted/20">
+                      <p className="text-muted-foreground font-medium">No opportunities posted yet</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
