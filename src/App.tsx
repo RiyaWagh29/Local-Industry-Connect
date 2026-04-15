@@ -21,7 +21,9 @@ import CommunityScreen from "./pages/CommunityScreen";
 import StudentCommunities from "./pages/StudentCommunities";
 import Leaderboard from "./pages/Leaderboard";
 import StudentMeetings from "./pages/StudentMeetings";
+import StudentCourses from "./pages/StudentCourses";
 import MentorMeetings from "./pages/MentorMeetings";
+import MentorCourses from "./pages/MentorCourses";
 import StudentProfile from "./pages/StudentProfile";
 import EditProfile from "./pages/EditProfile";
 import SettingsPage from "./pages/SettingsPage";
@@ -31,6 +33,7 @@ import MentorCommunityManagement from "./pages/MentorCommunityManagement";
 import MentorMembers from "./pages/MentorMembers";
 import MentorProfile from "./pages/MentorProfile";
 import PublicMentorProfile from "./pages/PublicMentorProfile";
+import CourseDetails from "./pages/CourseDetails";
 import AdminDashboard from "./pages/AdminDashboard";
 import PendingApproval from "./pages/PendingApproval";
 import SessionsPage from "./pages/SessionsPage";
@@ -71,6 +74,8 @@ const ProtectedRoute = ({ children, roles }: { children: React.ReactNode, roles?
       "/student/explore",
       "/mentor/explore",
       "/student/leaderboard",
+      "/student/courses",
+      "/mentor/courses",
       "/student/communities",
       "/mentor/communities",
     ];
@@ -108,6 +113,7 @@ const AppRoutes = () => {
       <Route path="/student/explore" element={<ProtectedRoute roles={["student"]}><ExploreMentors /></ProtectedRoute>} />
       <Route path="/mentor/explore" element={<ProtectedRoute roles={["mentor"]}><ExploreMentors /></ProtectedRoute>} />
       <Route path="/student/leaderboard" element={<ProtectedRoute roles={["student"]}><Leaderboard /></ProtectedRoute>} />
+      <Route path="/student/courses" element={<ProtectedRoute roles={["student"]}><StudentCourses /></ProtectedRoute>} />
       <Route path="/student/communities" element={<ProtectedRoute roles={["student"]}><StudentCommunities /></ProtectedRoute>} />
       <Route path="/mentor/communities" element={<ProtectedRoute roles={["mentor"]}><StudentCommunities /></ProtectedRoute>} />
       <Route path="/student/meetings" element={<ProtectedRoute roles={["student"]}><StudentMeetings /></ProtectedRoute>} />
@@ -123,11 +129,13 @@ const AppRoutes = () => {
       
       {/* Shared */}
       <Route path="/community/:id" element={<ProtectedRoute><CommunityScreen /></ProtectedRoute>} />
+      <Route path="/courses/:id" element={<ProtectedRoute><CourseDetails /></ProtectedRoute>} />
       <Route path="/sessions" element={<ProtectedRoute><SessionsPage /></ProtectedRoute>} />
       
       {/* Mentor Routes */}
       <Route path="/mentor/dashboard" element={<ProtectedRoute roles={["mentor"]}><MentorDashboard /></ProtectedRoute>} />
       <Route path="/mentor/community" element={<ProtectedRoute roles={["mentor"]}><MentorCommunityManagement /></ProtectedRoute>} />
+      <Route path="/mentor/courses" element={<ProtectedRoute roles={["mentor"]}><MentorCourses /></ProtectedRoute>} />
       <Route path="/mentor/meetings" element={<ProtectedRoute roles={["mentor"]}><MentorMeetings /></ProtectedRoute>} />
       <Route path="/mentor/members" element={<ProtectedRoute roles={["mentor"]}><MentorMembers /></ProtectedRoute>} />
       <Route path="/mentor/profile" element={<ProtectedRoute roles={["mentor"]}><MentorProfile /></ProtectedRoute>} />

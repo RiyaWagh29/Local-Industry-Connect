@@ -1,4 +1,4 @@
-import { Home, Search, Users, Briefcase, User, LayoutDashboard, MessageSquare, MessagesSquare, LogOut, Menu, X } from "lucide-react";
+import { Home, Search, Users, Briefcase, User, LayoutDashboard, MessageSquare, MessagesSquare, LogOut, Menu, X, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useLocation, NavLink } from "react-router-dom";
 import { useAuth } from "@/lib/auth-context";
@@ -18,6 +18,7 @@ export function BottomNav() {
     { path: "/student/explore", icon: Search, label: t("nav.explore") },
     { path: "/student/communities", icon: Users, label: t("nav.communities") },
     { path: "/student/leaderboard", icon: Briefcase, label: t("nav.leaderboard") }, // Swapping briefcase from jobs to leaderboard
+    { path: "/student/courses", icon: BookOpen, label: "Courses" },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
   ];
 
@@ -26,6 +27,7 @@ export function BottomNav() {
     { path: "/mentor/explore", icon: Search, label: t("nav.explore") },
     { path: "/mentor/communities", icon: Users, label: t("nav.communities") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
+    { path: "/mentor/courses", icon: BookOpen, label: "Courses" },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
   ];
 
@@ -74,6 +76,7 @@ export function MobileTopNav() {
     { path: "/student/explore", icon: Search, label: t("nav.explore") },
     { path: "/student/communities", icon: Users, label: t("nav.communities") },
     { path: "/student/leaderboard", icon: Briefcase, label: t("nav.leaderboard") },
+    { path: "/student/courses", icon: BookOpen, label: "Courses" },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/student/profile", icon: User, label: t("nav.profile") },
   ];
@@ -83,6 +86,7 @@ export function MobileTopNav() {
     { path: "/mentor/explore", icon: Search, label: t("nav.explore") },
     { path: "/mentor/communities", icon: Users, label: t("nav.communities") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
+    { path: "/mentor/courses", icon: BookOpen, label: "Courses" },
     { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },
@@ -170,6 +174,7 @@ export function DesktopSidebar() {
     { path: "/student/explore", icon: Search, label: t("nav.explore") },
     { path: "/student/communities", icon: Users, label: t("nav.communities") },
     { path: "/student/leaderboard", icon: Briefcase, label: t("nav.leaderboard") },
+    { path: "/student/courses", icon: BookOpen, label: "Courses" },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/student/profile", icon: User, label: t("nav.profile") },
   ];
@@ -179,6 +184,7 @@ export function DesktopSidebar() {
     { path: "/mentor/explore", icon: Search, label: t("nav.explore") },
     { path: "/mentor/communities", icon: Users, label: t("nav.communities") },
     { path: "/mentor/community", icon: MessageSquare, label: t("nav.community") },
+    { path: "/mentor/courses", icon: BookOpen, label: "Courses" },
     { path: "/mentor/meetings", icon: Calendar, label: t("nav.meetings") },
     { path: "/messages", icon: MessagesSquare, label: t("nav.messages") },
     { path: "/mentor/profile", icon: User, label: t("nav.profile") },

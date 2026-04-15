@@ -25,6 +25,7 @@ import communityRoutes from "./routes/communityRoutes.js";
 import communityMessageRoutes from "./routes/communityMessageRoutes.js";
 import meetingRoutes from "./routes/meetingRoutes.js";
 import ratingRoutes from "./routes/ratingRoutes.js";
+import courseRoutes from "./routes/courseRoutes.js";
 import SchedulerService from "./services/SchedulerService.js";
 
 const app = express();
@@ -103,6 +104,7 @@ app.use("/api/communities", communityRoutes);
 app.use("/api/community-messages", communityMessageRoutes);
 app.use("/api/meetings", meetingRoutes);
 app.use("/api/ratings", ratingRoutes);
+app.use("/api/courses", courseRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/admin", adminRoutes);
