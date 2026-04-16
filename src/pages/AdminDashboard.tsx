@@ -37,9 +37,15 @@ export default function AdminDashboard() {
     actorId?: { name?: string };
   };
 
+  type UserCounts = {
+    mentors: number;
+    students: number;
+  };
+
   const [userState, setUserState] = useState<{ data: AdminUser[]; page: number; totalPages: number }>({ data: [], page: 1, totalPages: 1 });
   const [sessionState, setSessionState] = useState<{ data: AdminSession[]; page: number; totalPages: number }>({ data: [], page: 1, totalPages: 1 });
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [userCounts, setUserCounts] = useState<UserCounts>({ mentors: 0, students: 0 });
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -82,9 +88,43 @@ export default function AdminDashboard() {
     } catch (e) { console.error("Logs error:", e); }
   };
 
+  const fetchUserCounts = async () => {
+    try {
+      const firstRes = await api.get(`/admin/users?page=1&limit=50`);
+      const firstData = firstRes.data;
+
+      if (!firstData.success) {
+        toast.error(firstData.message || "Error fetching user totals");
+        return;
+      }
+
+      const allUsers: AdminUser[] = [...firstData.data];
+
+      if (firstData.totalPages > 1) {
+        const remainingPages = Array.from({ length: firstData.totalPages - 1 }, (_, index) => index + 2);
+        const responses = await Promise.all(
+          remainingPages.map((page) => api.get(`/admin/users?page=${page}&limit=50`))
+        );
+
+        responses.forEach((res) => {
+          if (res.data?.success) {
+            allUsers.push(...res.data.data);
+          }
+        });
+      }
+
+      setUserCounts({
+        mentors: allUsers.filter((user) => user.role === "mentor" && user.isActive).length,
+        students: allUsers.filter((user) => user.role === "student" && user.isActive).length,
+      });
+    } catch (e) {
+      toast.error("Error fetching user totals");
+    }
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchUsers(), fetchSessions(), fetchLogs()]);
+    await Promise.all([fetchUsers(), fetchSessions(), fetchLogs(), fetchUserCounts()]);
     setLoading(false);
   }, []);
 
@@ -106,8 +146,7 @@ export default function AdminDashboard() {
     const data = res.data;
     if (data.success) {
       toast.success(data.message);
-      fetchUsers(userState.page);
-      fetchLogs();
+      await Promise.all([fetchUsers(userState.page), fetchUserCounts(), fetchLogs()]);
     } else toast.error(data.message);
   };
 
@@ -124,17 +163,29 @@ export default function AdminDashboard() {
   return (
     <ResponsiveLayout>
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-10 animate-fade-in">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <h1 className="text-h1 text-foreground flex items-center gap-3">
             Admin Panel <ShieldCheck className="text-primary" size={32} />
           </h1>
-          <div className="flex items-center gap-3">
-            <Button onClick={fetchData} variant="outline" size="sm" disabled={loading} className="gap-2">
-              <RefreshCw className={loading ? "animate-spin" : ""} size={16} /> Refresh
-            </Button>
-            <Button onClick={handleLogout} variant="destructive" size="sm" className="gap-2">
-              <LogOut size={16} /> Logout
-            </Button>
+          <div className="flex flex-col items-end gap-3">
+            <div className="flex items-center gap-3">
+              <Button onClick={fetchData} variant="outline" size="sm" disabled={loading} className="gap-2">
+                <RefreshCw className={loading ? "animate-spin" : ""} size={16} /> Refresh
+              </Button>
+              <Button onClick={handleLogout} variant="destructive" size="sm" className="gap-2">
+                <LogOut size={16} /> Logout
+              </Button>
+            </div>
+            <div className="flex flex-wrap justify-end gap-3">
+              <div className="rounded-lg border border-border/60 bg-card px-4 py-2 text-right shadow-sm">
+                <p className="text-xs text-muted-foreground">Approved Mentors</p>
+                <p className="text-xl font-semibold text-foreground">{userCounts.mentors}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-card px-4 py-2 text-right shadow-sm">
+                <p className="text-xs text-muted-foreground">Approved Students</p>
+                <p className="text-xl font-semibold text-foreground">{userCounts.students}</p>
+              </div>
+            </div>
           </div>
         </div>
 
