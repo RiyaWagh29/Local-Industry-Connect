@@ -249,13 +249,14 @@ export const verifyOtp = async (req, res) => {
       }
 
       // Create new user (Signup flow)
-      const { name, password, role } = userData;
+      const { name, password, role, linkedinProfile } = userData;
       user = await User.create({
         name,
         email: normalizedEmail,
         password,
         role: role || 'student',
         isActive: false, // Default for new users
+        linkedinProfile: role === 'mentor' ? String(linkedinProfile || '').trim() : '',
       });
     }
 

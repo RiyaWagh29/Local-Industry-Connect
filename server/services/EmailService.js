@@ -1,27 +1,49 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_PORT == 465, // true for 465, false for other ports
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Ensure server/.env is loaded even if CWD is the project root
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// Lazy-create the transporter on first use so that env vars are guaranteed
+// to be loaded (ES module import hoisting runs imports before server.js body).
+let _transporter = null;
+
+function getTransporter() {
+  if (!_transporter) {
+    console.log('[EmailService] Creating SMTP transporter:', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      user: process.env.SMTP_USER ? '***set***' : '***MISSING***',
+      pass: process.env.SMTP_PASS ? '***set***' : '***MISSING***',
+      from: process.env.SMTP_FROM ? '***set***' : '***MISSING***',
+    });
+    _transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: Number(process.env.SMTP_PORT) === 465,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+  return _transporter;
+}
 
 export const sendOtpEmail = async (email, otp) => {
   const requiredConfig = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
   const missingConfig = requiredConfig.filter((key) => !process.env[key]);
 
   if (missingConfig.length > 0) {
-    console.error(`Missing SMTP configuration: ${missingConfig.join(', ')}`);
+    console.error(`[EmailService] Missing SMTP configuration: ${missingConfig.join(', ')}`);
     return false;
   }
 
@@ -49,12 +71,16 @@ export const sendOtpEmail = async (email, otp) => {
   };
 
   try {
-    console.log(`Attempting to send OTP email to: ${email}`);
+    console.log(`[EmailService] Attempting to send OTP email to: ${email}`);
+    const transporter = getTransporter();
     await transporter.sendMail(mailOptions);
-    console.log(`OTP email sent successfully to: ${email}`);
+    console.log(`[EmailService] OTP email sent successfully to: ${email}`);
     return true;
   } catch (error) {
-    console.error('Error sending OTP email:', error);
+    console.error('[EmailService] Error sending OTP email:', error.message || error);
+    // Reset transporter so it can be recreated on next attempt
+    // (handles cases where credentials were rotated)
+    _transporter = null;
     return false;
   }
 };
