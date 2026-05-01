@@ -11,6 +11,8 @@ import { getHomeRoute } from "@/lib/navigation";
 type AuthTab = "signin" | "signup";
 type RoleTab = "student" | "mentor";
 
+const TEMP_BYPASS_SIGNUP_OTP = true;
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,6 +84,41 @@ export default function AuthPage() {
           toast.success(t("auth.loginSuccess"));
         }
       } else {
+        if (TEMP_BYPASS_SIGNUP_OTP) {
+          setRole(roleTab);
+
+          const userData = roleTab === "mentor"
+            ? (() => {
+                const formData = new FormData();
+                formData.set("name", name.trim());
+                formData.set("email", cleanEmail);
+                formData.set("password", password);
+                formData.set("role", roleTab);
+                formData.set("linkedinProfile", linkedinProfile.trim());
+                if (officeIdCard) formData.set("officeIdCard", officeIdCard);
+                return formData;
+              })()
+            : {
+                name: name.trim(),
+                email: cleanEmail,
+                password,
+                role: roleTab,
+              };
+
+          const result = await signUp(userData, password);
+
+          if (result.error) {
+            toast.error(result.error.message || "Signup failed");
+            return;
+          }
+
+          if (result.success) {
+            toast.success(t("auth.signupSuccess"));
+          }
+
+          return;
+        }
+
         if (!otpSent) {
           console.log("Sending signup OTP to:", cleanEmail);
           const result = await sendOtp(cleanEmail);
@@ -322,7 +359,7 @@ export default function AuthPage() {
                   ? (otpSent ? "Verifying..." : "Sending OTP...")
                   : t("auth.signingIn")
                 : authTab === "signup" 
-                  ? (otpSent ? "Verify & Register" : "Send OTP for Signup")
+                  ? (TEMP_BYPASS_SIGNUP_OTP ? "Create Account" : otpSent ? "Verify & Register" : "Send OTP for Signup")
                   : t("signIn")}
             </button>
           </form>
