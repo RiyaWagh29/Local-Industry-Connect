@@ -11,6 +11,9 @@ import { getHomeRoute } from "@/lib/navigation";
 type AuthTab = "signin" | "signup";
 type RoleTab = "student" | "mentor";
 
+// TEMPORARY: Set to false once SMTP env vars are configured on Render
+const TEMP_BYPASS_SIGNUP_OTP = true;
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,56 +85,87 @@ export default function AuthPage() {
           toast.success(t("auth.loginSuccess"));
         }
       } else {
-        // ---- Signup: OTP flow ----
-        if (!otpSent) {
-          // Step 1: Send OTP
-          console.log("Sending signup OTP to:", cleanEmail);
-          const result = await sendOtp(cleanEmail);
-
-          if (result.error) {
-            toast.error(result.error.message || "Failed to send OTP");
-            return;
-          }
-
-          if (result.success) {
-            setOtpSent(true);
-            if (result.otp) {
-              setOtp(result.otp);
-              toast.success(`OTP: ${result.otp}`);
-            } else {
-              toast.success(result.message || "Check your email for OTP to complete registration");
-            }
-          }
-        } else {
-          // Step 2: Verify OTP & register
-          if (otp.length !== 6) {
-            setErrors((prev) => ({ ...prev, otp: "Enter the 6-digit OTP" }));
-            return;
-          }
-
+        if (TEMP_BYPASS_SIGNUP_OTP) {
+          // Direct registration (OTP bypassed until SMTP is configured on Render)
           setRole(roleTab);
-          console.log("Verifying signup for:", cleanEmail);
 
-          const userData: any = {
-            name: name.trim(),
-            password,
-            role: roleTab,
-          };
+          const userData = roleTab === "mentor"
+            ? (() => {
+                const formData = new FormData();
+                formData.set("name", name.trim());
+                formData.set("email", cleanEmail);
+                formData.set("password", password);
+                formData.set("role", roleTab);
+                formData.set("linkedinProfile", linkedinProfile.trim());
+                if (officeIdCard) formData.set("officeIdCard", officeIdCard);
+                return formData;
+              })()
+            : {
+                name: name.trim(),
+                email: cleanEmail,
+                password,
+                role: roleTab,
+              };
 
-          // Include mentor-specific fields
-          if (roleTab === "mentor") {
-            userData.linkedinProfile = linkedinProfile.trim();
-          }
-
-          const result = await verifyOtp(cleanEmail, otp, userData);
+          const result = await signUp(userData, password);
 
           if (result.error) {
-            toast.error(result.error.message || "Invalid OTP");
+            toast.error(result.error.message || "Signup failed");
             return;
           }
 
           if (result.success) {
             toast.success(t("auth.signupSuccess"));
+          }
+        } else {
+          // ---- Signup: OTP flow ----
+          if (!otpSent) {
+            console.log("Sending signup OTP to:", cleanEmail);
+            const result = await sendOtp(cleanEmail);
+
+            if (result.error) {
+              toast.error(result.error.message || "Failed to send OTP");
+              return;
+            }
+
+            if (result.success) {
+              setOtpSent(true);
+              if (result.otp) {
+                setOtp(result.otp);
+                toast.success(`OTP: ${result.otp}`);
+              } else {
+                toast.success(result.message || "Check your email for OTP to complete registration");
+              }
+            }
+          } else {
+            if (otp.length !== 6) {
+              setErrors((prev) => ({ ...prev, otp: "Enter the 6-digit OTP" }));
+              return;
+            }
+
+            setRole(roleTab);
+            console.log("Verifying signup for:", cleanEmail);
+
+            const userData: any = {
+              name: name.trim(),
+              password,
+              role: roleTab,
+            };
+
+            if (roleTab === "mentor") {
+              userData.linkedinProfile = linkedinProfile.trim();
+            }
+
+            const result = await verifyOtp(cleanEmail, otp, userData);
+
+            if (result.error) {
+              toast.error(result.error.message || "Invalid OTP");
+              return;
+            }
+
+            if (result.success) {
+              toast.success(t("auth.signupSuccess"));
+            }
           }
         }
       }
@@ -325,10 +359,10 @@ export default function AuthPage() {
             >
               {loading
                 ? authTab === "signup"
-                  ? (otpSent ? "Verifying..." : "Sending OTP...")
+                  ? (TEMP_BYPASS_SIGNUP_OTP ? "Creating Account..." : otpSent ? "Verifying..." : "Sending OTP...")
                   : t("auth.signingIn")
                 : authTab === "signup"
-                  ? (otpSent ? "Verify & Register" : "Send OTP for Signup")
+                  ? (TEMP_BYPASS_SIGNUP_OTP ? "Create Account" : otpSent ? "Verify & Register" : "Send OTP for Signup")
                   : t("signIn")}
             </button>
           </form>
