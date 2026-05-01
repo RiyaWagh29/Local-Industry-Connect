@@ -93,7 +93,12 @@ export default function AuthPage() {
 
           if (result.success) {
             setOtpSent(true);
-            toast.success("Check your email for OTP to complete registration");
+            if (result.otp) {
+              setOtp(result.otp);
+              toast.success(`OTP: ${result.otp}`);
+            } else {
+              toast.success(result.message || "Check your email for OTP to complete registration");
+            }
           }
         } else {
           if (otp.length !== 6) {

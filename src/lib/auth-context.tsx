@@ -20,7 +20,7 @@ interface AuthContextType {
   isNewUser: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
   signUp: (userData: any, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
-  sendOtp: (email: string) => Promise<{ success: boolean; error?: { message: string } }>;
+  sendOtp: (email: string) => Promise<{ success: boolean; otp?: string; message?: string; error?: { message: string } }>;
   verifyOtp: (email: string, otp: string, userData?: any) => Promise<{ success: boolean; error?: { message: string } }>;
   updateUser: (data: Partial<User> | FormData) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -174,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post("/auth/send-otp", { email });
-      return { success: true };
+      return { success: true, otp: res.data?.otp, message: res.data?.message };
     } catch (err: any) {
       return {
         success: false,

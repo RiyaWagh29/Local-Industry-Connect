@@ -198,9 +198,20 @@ export const sendOtp = async (req, res) => {
 
     if (emailSent) {
       res.status(200).json({ success: true, message: 'Check your email for OTP' });
-    } else {
-      res.status(500).json({ success: false, message: 'Failed to send OTP email' });
+      return;
     }
+
+    if (process.env.ALLOW_OTP_FALLBACK === 'true') {
+      console.warn(`OTP email failed. Returning fallback OTP for ${normalizedEmail}.`);
+      res.status(200).json({
+        success: true,
+        message: 'Email failed. Use the OTP shown in the app.',
+        otp,
+      });
+      return;
+    }
+
+    res.status(500).json({ success: false, message: 'Failed to send OTP email' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
