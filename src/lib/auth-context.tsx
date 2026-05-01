@@ -20,6 +20,8 @@ interface AuthContextType {
   isNewUser: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
   signUp: (userData: any, password: string) => Promise<{ success: boolean; error?: { message: string } }>;
+  sendOtp: (email: string) => Promise<{ success: boolean; error?: { message: string } }>;
+  verifyOtp: (email: string, otp: string, userData?: any) => Promise<{ success: boolean; error?: { message: string } }>;
   updateUser: (data: Partial<User> | FormData) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -168,6 +170,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const sendOtp = async (email: string) => {
+    setIsLoading(true);
+    try {
+      const res = await api.post("/auth/send-otp", { email });
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: { message: err?.response?.data?.message || "Failed to send OTP" },
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyOtp = async (email: string, otp: string, userData?: any) => {
+    setIsLoading(true);
+    try {
+      const res = await api.post("/auth/verify-otp", { email, otp, userData });
+      const { token, user: loggedUser } = res.data || {};
+
+      if (token && loggedUser) {
+        localStorage.setItem("token", token);
+        await refreshUser();
+        return { success: true };
+      }
+      return { success: false, error: { message: "Invalid response from server" } };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: { message: err?.response?.data?.message || "Verification failed" },
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateUser = async (data: Partial<User> | FormData) => {
     try {
       const res = data instanceof FormData
@@ -225,7 +264,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, role, setRole, logout, isAuthenticated: !!user,
-      isInitialized, isLoading, isNewUser, signIn, signUp, updateUser, refreshUser
+      isInitialized, isLoading, isNewUser, signIn, signUp, sendOtp, verifyOtp, updateUser, refreshUser
     }}>
       {children}
     </AuthContext.Provider>

@@ -1,7 +1,9 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Otp from '../models/Otp.js';
 import { config } from '../config/env.js';
 import { uploadBufferToSupabase } from '../services/storageService.js';
+import { sendOtpEmail } from '../services/EmailService.js';
 
 const ADMIN_EMAIL = 'admin@gmail.com';
 const ADMIN_PASSWORD = 'admin123';
@@ -163,6 +165,105 @@ res.json({
     } else {
       res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Send OTP to email
+// @route   POST /api/auth/send-otp
+// @access  Public
+export const sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ success: false, message: 'Please provide an email' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store OTP in database (update if exists, or create)
+    // The expires field in the model will handle cleanup
+    await Otp.findOneAndUpdate(
+      { email: normalizedEmail },
+      { otp, createdAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    // Send Email
+    const emailSent = await sendOtpEmail(normalizedEmail, otp);
+
+    if (emailSent) {
+      res.status(200).json({ success: true, message: 'Check your email for OTP' });
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to send OTP email' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Verify OTP and login
+// @route   POST /api/auth/verify-otp
+// @access  Public
+export const verifyOtp = async (req, res) => {
+  try {
+    const { email, otp, userData } = req.body;
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!normalizedEmail || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    // Find OTP record
+    const otpRecord = await Otp.findOne({ email: normalizedEmail });
+
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: 'OTP expired, request again' });
+    }
+
+    if (otpRecord.otp !== otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    // OTP is correct - find or create user
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      if (!userData) {
+        return res.status(404).json({ success: false, message: 'User not found. Please sign up first.' });
+      }
+
+      // Create new user (Signup flow)
+      const { name, password, role } = userData;
+      user = await User.create({
+        name,
+        email: normalizedEmail,
+        password,
+        role: role || 'student',
+        isActive: false, // Default for new users
+      });
+    }
+
+    // Delete OTP record after successful verification
+    await Otp.deleteOne({ email: normalizedEmail });
+
+    // Success - Return Token
+    res.json({
+      success: true,
+      token: generateToken(user._id),
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        onboarding_completed: user.onboarding_completed || false,
+      },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

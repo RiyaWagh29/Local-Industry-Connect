@@ -14,7 +14,7 @@ type RoleTab = "student" | "mentor";
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { signIn, signUp, setRole, role: contextRole, isAuthenticated, user } = useAuth();
+  const { signIn, signUp, setRole, role: contextRole, isAuthenticated, user, sendOtp, verifyOtp } = useAuth() as any;
   const { t } = useLanguage();
 
   const [authTab, setAuthTab] = useState<AuthTab>((searchParams.get("mode") as AuthTab) || "signin");
@@ -29,6 +29,8 @@ export default function AuthPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
 
   // If already authenticated, redirect to appropriate home
   useEffect(() => {
@@ -71,11 +73,7 @@ export default function AuthPage() {
         const result = await signIn(cleanEmail, password);
 
         if (result.error) {
-          if (result.error.status === 429 || result.error.message.includes("rate limit")) {
-            toast.error("Too many attempts. Please try again in a few minutes.");
-          } else {
-            toast.error(result.error.message || t("auth.invalidCredentials"));
-          }
+          toast.error(result.error.message || t("auth.invalidCredentials"));
           return;
         }
 
@@ -83,43 +81,39 @@ export default function AuthPage() {
           toast.success(t("auth.loginSuccess"));
         }
       } else {
-        setRole(roleTab);
-        console.log("Signing up with:", cleanEmail);
-        const signupPayload = roleTab === "mentor"
-          ? (() => {
-              const formData = new FormData();
-              formData.append("name", name.trim());
-              formData.append("email", cleanEmail);
-              formData.append("role", roleTab);
-              formData.append("industries", JSON.stringify([]));
-              formData.append("skills", JSON.stringify([]));
-              formData.append("linkedinProfile", linkedinProfile.trim());
-              if (officeIdCard) {
-                formData.append("officeIdCard", officeIdCard);
-              }
-              return formData;
-            })()
-          : {
-              name: name.trim(),
-              email: cleanEmail,
-              role: roleTab,
-              industries: [],
-              skills: [],
-            };
+        if (!otpSent) {
+          console.log("Sending signup OTP to:", cleanEmail);
+          const result = await sendOtp(cleanEmail);
 
-        const result = await signUp(signupPayload, password);
-
-        if (result.error) {
-          if (result.error.status === 429 || result.error.message.includes("rate limit")) {
-            toast.error("Too many attempts. Please try again in a few minutes.");
-          } else {
-            toast.error(result.error.message || t("auth.emailExists"));
+          if (result.error) {
+            toast.error(result.error.message || "Failed to send OTP");
+            return;
           }
-          return;
-        }
 
-        if (result.success) {
-          toast.success(t("auth.signupSuccess"));
+          if (result.success) {
+            setOtpSent(true);
+            toast.success("Check your email for OTP to complete registration");
+          }
+        } else {
+          setRole(roleTab);
+          console.log("Verifying signup for:", cleanEmail);
+          
+          const userData = {
+            name: name.trim(),
+            password,
+            role: roleTab,
+          };
+
+          const result = await verifyOtp(cleanEmail, otp, userData);
+
+          if (result.error) {
+            toast.error(result.error.message || "Invalid OTP");
+            return;
+          }
+
+          if (result.success) {
+            toast.success(t("auth.signupSuccess"));
+          }
         }
       }
     } catch (error: any) {
@@ -151,7 +145,7 @@ export default function AuthPage() {
           {(["signin", "signup"] as AuthTab[]).map((tab) => (
             <button
               key={tab}
-              onClick={() => { setAuthTab(tab); setErrors({}); }}
+              onClick={() => { setAuthTab(tab); setErrors({}); setOtpSent(false); setOtp(""); }}
               className={`flex-1 py-2.5 rounded-lg text-body font-medium transition-all ${authTab === tab
                   ? "bg-card shadow-sm text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -261,32 +255,50 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); clearErrors("email"); }}
                 placeholder={t("email")}
-                className={`w-full px-4 py-3 rounded-lg border ${errors.email ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
+                disabled={otpSent && authTab === "signup"}
+                className={`w-full px-4 py-3 rounded-lg border ${errors.email ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all ${otpSent && authTab === "signup" ? "opacity-50 cursor-not-allowed" : ""}`}
                 id="auth-email"
               />
               {errors.email && <p className="text-caption text-destructive mt-1">{errors.email}</p>}
             </div>
 
-            <div>
-              <div className="relative">
+            {authTab === "signup" && otpSent && (
+              <div>
                 <input
-                  type={showPass ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); clearErrors("password"); }}
-                  placeholder={t("password")}
-                  className={`w-full px-4 py-3 pr-11 rounded-lg border ${errors.password ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
-                  id="auth-password"
+                  type="text"
+                  value={otp}
+                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); clearErrors("otp"); }}
+                  placeholder="Enter 6-digit OTP"
+                  className={`w-full px-4 py-3 rounded-lg border ${errors.otp ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
+                  id="auth-otp"
+                  maxLength={6}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+                {errors.otp && <p className="text-caption text-destructive mt-1">{errors.otp}</p>}
               </div>
-              {errors.password && <p className="text-caption text-destructive mt-1">{errors.password}</p>}
-            </div>
+            )}
+
+            {authTab === "signup" && (
+              <div>
+                <div className="relative">
+                  <input
+                    type={showPass ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); clearErrors("password"); }}
+                    placeholder={t("password")}
+                    className={`w-full px-4 py-3 pr-11 rounded-lg border ${errors.password ? "border-destructive" : "border-input"} bg-background text-foreground text-body focus:ring-2 focus:ring-primary/30 outline-none transition-all`}
+                    id="auth-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-caption text-destructive mt-1">{errors.password}</p>}
+              </div>
+            )}
 
             <button
               type="submit"
@@ -295,8 +307,10 @@ export default function AuthPage() {
               className="btn-primary w-full"
             >
               {loading
-                ? t(authTab === "signin" ? "auth.signingIn" : "auth.creatingAccount")
-                : t(authTab === "signin" ? "signIn" : "signUp")}
+                ? t(authTab === "signup" ? (otpSent ? "Verifying..." : "auth.creatingAccount") : "auth.signingIn")
+                : authTab === "signup" 
+                  ? (otpSent ? "Verify & Register" : "Send OTP for Signup")
+                  : t("signIn")}
             </button>
           </form>
 
