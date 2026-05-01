@@ -7,6 +7,9 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
   secure: process.env.SMTP_PORT == 465, // true for 465, false for other ports
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -14,6 +17,14 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendOtpEmail = async (email, otp) => {
+  const requiredConfig = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+  const missingConfig = requiredConfig.filter((key) => !process.env[key]);
+
+  if (missingConfig.length > 0) {
+    console.error(`Missing SMTP configuration: ${missingConfig.join(', ')}`);
+    return false;
+  }
+
   const mailOptions = {
     from: `"Local Industry Connect" <${process.env.SMTP_FROM}>`,
     to: email,

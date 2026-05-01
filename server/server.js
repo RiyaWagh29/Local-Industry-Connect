@@ -1,5 +1,12 @@
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 import express from "express";
 import cors from "cors";
@@ -7,7 +14,6 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import crypto from "crypto";
-import path from "path";
 
 import connectDB from "./config/db.js";
 import { config } from "./config/env.js";

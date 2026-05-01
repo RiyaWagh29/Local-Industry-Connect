@@ -58,6 +58,7 @@ export default function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (!validate()) return;
 
     const cleanEmail = email.trim().toLowerCase();
@@ -95,6 +96,11 @@ export default function AuthPage() {
             toast.success("Check your email for OTP to complete registration");
           }
         } else {
+          if (otp.length !== 6) {
+            setErrors((prev) => ({ ...prev, otp: "Enter the 6-digit OTP" }));
+            return;
+          }
+
           setRole(roleTab);
           console.log("Verifying signup for:", cleanEmail);
           
@@ -307,7 +313,9 @@ export default function AuthPage() {
               className="btn-primary w-full"
             >
               {loading
-                ? t(authTab === "signup" ? (otpSent ? "Verifying..." : "auth.creatingAccount") : "auth.signingIn")
+                ? authTab === "signup"
+                  ? (otpSent ? "Verifying..." : "Sending OTP...")
+                  : t("auth.signingIn")
                 : authTab === "signup" 
                   ? (otpSent ? "Verify & Register" : "Send OTP for Signup")
                   : t("signIn")}
