@@ -296,8 +296,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {authTab === "signup" && (
-              <div>
+            <div>
                 <div className="relative">
                   <input
                     type={showPass ? "text" : "password"}
@@ -317,7 +316,6 @@ export default function AuthPage() {
                 </div>
                 {errors.password && <p className="text-caption text-destructive mt-1">{errors.password}</p>}
               </div>
-            )}
 
             <button
               type="submit"
