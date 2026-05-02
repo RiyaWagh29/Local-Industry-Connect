@@ -201,17 +201,13 @@ export const sendOtp = async (req, res) => {
       return;
     }
 
-    if (process.env.ALLOW_OTP_FALLBACK === 'true') {
-      console.warn(`OTP email failed. Returning fallback OTP for ${normalizedEmail}.`);
-      res.status(200).json({
-        success: true,
-        message: 'Email failed. Use the OTP shown in the app.',
-        otp,
-      });
-      return;
-    }
-
-    res.status(500).json({ success: false, message: 'Failed to send OTP email' });
+    // Email failed — return OTP directly so signup is not blocked
+    console.warn(`OTP email failed. Returning OTP in response for ${normalizedEmail}.`);
+    res.status(200).json({
+      success: true,
+      message: 'Email delivery failed. Use the OTP shown below.',
+      otp,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

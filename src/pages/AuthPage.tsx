@@ -11,8 +11,8 @@ import { getHomeRoute } from "@/lib/navigation";
 type AuthTab = "signin" | "signup";
 type RoleTab = "student" | "mentor";
 
-// TEMPORARY: Set to false once SMTP env vars are configured on Render
-const TEMP_BYPASS_SIGNUP_OTP = true;
+// OTP bypass disabled — backend returns OTP in response if email fails
+const TEMP_BYPASS_SIGNUP_OTP = false;
 
 export default function AuthPage() {
   const navigate = useNavigate();
